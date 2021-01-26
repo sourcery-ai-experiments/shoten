@@ -10,7 +10,11 @@ with open('README.rst') as readme_file:
 #with open('HISTORY.rst') as history_file:
 #    history = history_file.read()
 
-requirements = []
+requirements = [
+                   'numpy',
+                   'simplemma >= 0.2.0',
+                   'trafilatura >= 0.7.0'
+               ]
 
 setup_requirements = []
 
