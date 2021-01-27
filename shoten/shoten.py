@@ -13,7 +13,7 @@ from pathlib import Path
 
 import numpy as np
 
-from simplemma import load_data, lemmatize, simple_tokenizer # , text_lemmatizer
+from simplemma import load_data, lemmatize, simple_tokenizer, is_known # , text_lemmatizer
 from trafilatura.utils import load_html, sanitize
 
 
@@ -33,13 +33,16 @@ def calc_timediff(mydate):
 
 def store_lemmaform(token, timediff, myvocab, lemmadata):
     # apply filter first
-    if 5 < len(token) < 50 and digitsfilter.search(token):
-        try:
-            _ = lemmatize(token, lemmadata, greedy=False, silent=False)
-        except ValueError:
-            # and token[:-1] not in myvocab and token[:-1].lower() not in myvocab:
-            # token = token.lower()
-            myvocab[token] = np.append(myvocab[token], timediff)
+    if 5 < len(token) < 50 and digitsfilter.search(token) and not token.endswith('-'):
+        # potential new words only
+        if is_known(token, lemmadata) is False:
+            try:
+                lemma = lemmatize(token, lemmadata, greedy=True, silent=False)
+                myvocab[lemma] = np.append(myvocab[lemma], timediff)
+            except ValueError:
+                # and token[:-1] not in myvocab and token[:-1].lower() not in myvocab:
+                # token = token.lower()
+                myvocab[token] = np.append(myvocab[token], timediff)
     return myvocab
 
 
@@ -68,12 +71,9 @@ def gen_wordlist(mydir, langcodes):
 def load_wordlist(myfile, langcodes=None):
     filepath = str(Path(__file__).parent / myfile)
     myvocab = defaultdict(partial(np.array, [], dtype='i'))
-    known = set()
     if langcodes is not None:
         # load language data
-        lemmadata = load_data(langcodes)
-        for dictionary in lemmadata:
-            known.update(dictionary.values())
+        lemmadata = load_data(*langcodes)
     with open(filepath, 'r', encoding='utf-8') as filehandle:
         for line in filehandle:
             line = line.strip()
@@ -89,7 +89,7 @@ def load_wordlist(myfile, langcodes=None):
             if langcodes is not None:
                 # load language data
                 lemmadata = load_data(langcodes)
-                myvocab = store_lemmaform(token, timediff, myvocab, lemmadata, known)
+                myvocab = store_lemmaform(token, timediff, myvocab, lemmadata)
             else:
                 myvocab[token] = np.append(myvocab[token], timediff)
     return myvocab
