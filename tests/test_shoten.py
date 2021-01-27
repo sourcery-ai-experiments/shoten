@@ -19,8 +19,9 @@ def test_basics():
     myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
     assert len(myvocab) == 2
     # pickling and unpickling
-    pickle_wordinfo(myvocab, str(Path(__file__).parent / 'test.pickle'))
-    myvocab2 = unpickle_wordinfo(str(Path(__file__).parent / 'test.pickle'))
+    filepath = str(Path(__file__).parent / 'test.pickle')
+    pickle_wordinfo(myvocab, filepath)
+    myvocab2 = unpickle_wordinfo(filepath)
     assert len(myvocab2) == len(myvocab) and myvocab2['Tests'].all() == myvocab['Tests'].all()
     # generate from XML file
     myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), ('de', 'en'))

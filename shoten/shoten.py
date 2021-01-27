@@ -95,14 +95,12 @@ def load_wordlist(myfile, langcodes=None):
     return myvocab
 
 
-def pickle_wordinfo(mydict, filename):
-    filepath = str(Path(__file__).parent / filename)
+def pickle_wordinfo(mydict, filepath):
     with gzip.open(filepath, 'w') as filehandle:
         pickle.dump(mydict, filehandle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-def unpickle_wordinfo(filename):
-    filepath = str(Path(__file__).parent / filename)
+def unpickle_wordinfo(filepath):
     with gzip.open(filepath) as filehandle:
         return pickle.load(filehandle)
 
