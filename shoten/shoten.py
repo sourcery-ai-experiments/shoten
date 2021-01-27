@@ -3,6 +3,7 @@
 
 import gzip
 import pickle
+import re
 
 from collections import defaultdict
 from datetime import datetime
@@ -17,7 +18,7 @@ from trafilatura.utils import load_html, sanitize
 
 
 today = datetime.today()
-
+digitsfilter = re.compile(r'[^\W\d\.]', re.UNICODE)
 
 
 def calc_timediff(mydate):
@@ -30,15 +31,15 @@ def calc_timediff(mydate):
     return diff.days
 
 
-def store_lemmaform(token, timediff, myvocab, lemmadata, known):
-    try:
-        _ = lemmatize(token, lemmadata, greedy=False, silent=False)
-    except ValueError:
-        if 5 < len(token) < 50: # and re.match(r'\w', lemma):
-            if token not in known and token.lower() not in known: # \
-                # and token[:-1] not in known and token[:-1].lower() not in known:
-                # token = token.lower()
-                myvocab[token] = np.append(myvocab[token], timediff)
+def store_lemmaform(token, timediff, myvocab, lemmadata):
+    # apply filter first
+    if 5 < len(token) < 50 and digitsfilter.search(token):
+        try:
+            _ = lemmatize(token, lemmadata, greedy=False, silent=False)
+        except ValueError:
+            # and token[:-1] not in myvocab and token[:-1].lower() not in myvocab:
+            # token = token.lower()
+            myvocab[token] = np.append(myvocab[token], timediff)
     return myvocab
 
 
@@ -46,11 +47,7 @@ def gen_wordlist(mydir, langcodes):
     # init
     myvocab = defaultdict(partial(np.array, [], dtype='i'))
     # load language data
-    lemmadata = load_data(langcodes)
-    # necessary?
-    known = set()
-    for dictionary in lemmadata:
-        known.update(dictionary.values())
+    lemmadata = load_data(*langcodes)
     # read files
     for filename in listdir(mydir):
         # read data
@@ -64,7 +61,7 @@ def gen_wordlist(mydir, langcodes):
         # process
         text = sanitize(' '.join(mytree.xpath('//text')[0].itertext()))
         for token in simple_tokenizer(text):
-            myvocab = store_lemmaform(token, timediff, myvocab, lemmadata, known)
+            myvocab = store_lemmaform(token, timediff, myvocab, lemmadata)
     return myvocab
 
 
