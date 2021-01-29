@@ -1,0 +1,52 @@
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader>
+    <fileDesc>
+      <titleStmt>
+        <title type="main">Binnen 72 Stunden: 25 Millionen neue Nutzer für Telegram</title>
+        <author>APA News</author>
+      </titleStmt>
+      <publicationStmt>
+        <p/>
+      </publicationStmt>
+      <notesStmt>
+        <note type="fingerprint">OfwMSVsRlj3rbchwrU+oU4FKvhQ=</note>
+      </notesStmt>
+      <sourceDesc>
+        <bibl>Binnen 72 Stunden: 25 Millionen neue Nutzer für Telegram. HORIZONT, 2021-01-13</bibl>
+        <bibl type="sigle">HORIZONT, 2021-01-13</bibl>
+        <biblFull>
+          <titleStmt>
+            <title type="main">Binnen 72 Stunden: 25 Millionen neue Nutzer für Telegram</title>
+            <author>APA News</author>
+          </titleStmt>
+          <publicationStmt>
+            <publisher>HORIZONT(horizont.at)</publisher>
+            <ptr type="URL" target="https://www.horizont.at/digital/news/binnen-72-stunden-25-millionen-neue-nutzer-fuer-telegram-83469"/>
+            <date>2021-01-13</date>
+          </publicationStmt>
+        </biblFull>
+      </sourceDesc>
+    </fileDesc>
+    <profileDesc>
+      <abstract>
+        <p>Der Messengerdienst Telegram hat binnen 72 Stunden rund 25 Millionen neue Nutzer dazugewonnen.</p>
+      </abstract>
+    </profileDesc>
+    <encodingDesc>
+      <appInfo>
+        <application version="0.7.0" ident="Trafilatura">
+          <label>Trafilatura</label>
+          <ptr target="https://github.com/adbar/trafilatura"/>
+        </application>
+      </appInfo>
+    </encodingDesc>
+  </teiHeader>
+  <text>
+    <body>
+      <div type="entry">
+        <p> Der Messengerdienst Telegram hat binnen 72 Stunden rund 25 Millionen neue Nutzer dazugewonnen. Wie der russische App-Gründer Pawel Durow am Dienstag mitteilte, verzeichnet die Plattform derzeit rund 500 Millionen monatlich aktive Nutzer. Damit rückt Telegram näher an seinen US-Konkurrenten WhatsApp heran.</p>
+      </div>
+      <div type="comments"/>
+    </body>
+  </text>
+</TEI>

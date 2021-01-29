@@ -2,13 +2,13 @@
 
 
 import gzip
+import os
 import pickle
 import re
 
 from collections import defaultdict
 from datetime import datetime
 from functools import partial
-from os import listdir, path
 from pathlib import Path
 
 import numpy as np
@@ -19,6 +19,11 @@ from trafilatura.utils import load_html, sanitize
 
 today = datetime.today()
 digitsfilter = re.compile(r'[^\W\d\.]', re.UNICODE)
+
+
+def find_files(dirname):
+    for thepath, _, files in os.walk(dirname):
+        yield from ((thepath, fname) for fname in files if Path(fname).suffix == '.xml')
 
 
 def calc_timediff(mydate):
@@ -52,9 +57,9 @@ def gen_wordlist(mydir, langcodes):
     # load language data
     lemmadata = load_data(*langcodes)
     # read files
-    for filename in listdir(mydir):
+    for pathname, filename in find_files(mydir):
         # read data
-        with open(path.join(mydir, filename), 'rb') as filehandle:
+        with open(os.path.join(pathname, filename), 'rb') as filehandle:
             mydata = filehandle.read()
         mytree = load_html(mydata)
         # compute difference in days
