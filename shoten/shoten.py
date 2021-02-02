@@ -2,19 +2,20 @@
 
 
 import gzip
-import os
 import pickle
 import re
 
 from collections import defaultdict
+# from concurrent.futures import as_completed, ThreadPoolExecutor
 from datetime import datetime
 from functools import partial
+from os import path, walk # cpu_count
 from pathlib import Path
 
 import numpy as np
 
-from simplemma import load_data, lemmatize, simple_tokenizer, is_known # , text_lemmatizer
-from trafilatura.utils import load_html, sanitize
+from simplemma import load_data, lemmatize, simple_tokenizer, is_known
+from trafilatura.utils import load_html #, sanitize
 
 
 today = datetime.today()
@@ -22,8 +23,8 @@ digitsfilter = re.compile(r'[^\W\d\.]', re.UNICODE)
 
 
 def find_files(dirname):
-    for thepath, _, files in os.walk(dirname):
-        yield from ((thepath, fname) for fname in files if Path(fname).suffix == '.xml')
+    for thepath, _, files in walk(dirname):
+        yield from (path.join(thepath, fname) for fname in files if Path(fname).suffix == '.xml')
 
 
 def calc_timediff(mydate):
@@ -36,19 +37,36 @@ def calc_timediff(mydate):
     return diff.days
 
 
-def store_lemmaform(token, timediff, myvocab, lemmadata):
+def filter_lemmaform(token, lemmadata):
     # apply filter first
     if 5 < len(token) < 50 and digitsfilter.search(token) and not token.endswith('-'):
         # potential new words only
-        if is_known(token, lemmadata) is False:
+        if is_known(token, lemmadata) is False and len([l for l in token if l.isupper()]) < 4:
             try:
-                lemma = lemmatize(token, lemmadata, greedy=True, silent=False)
-                myvocab[lemma] = np.append(myvocab[lemma], timediff)
+                return lemmatize(token, lemmadata, greedy=True, silent=False)
             except ValueError:
                 # and token[:-1] not in myvocab and token[:-1].lower() not in myvocab:
                 # token = token.lower()
-                myvocab[token] = np.append(myvocab[token], timediff)
-    return myvocab
+                return token
+    return None
+
+
+def read_file(filepath, lemmadata):
+    resultlist = []
+    # read data
+    with open(filepath, 'rb') as filehandle:
+        mydata = filehandle.read()
+    mytree = load_html(mydata)
+    # compute difference in days
+    timediff = calc_timediff(mytree.xpath('//date')[0].text)
+    if timediff is not None:
+        # process
+        for token in simple_tokenizer(' '.join(mytree.xpath('//text')[0].itertext())):
+            result = filter_lemmaform(token, lemmadata)
+            if result is not None:
+                # store tuple
+                resultlist.append((result, timediff))
+    return resultlist
 
 
 def gen_wordlist(mydir, langcodes):
@@ -57,19 +75,14 @@ def gen_wordlist(mydir, langcodes):
     # load language data
     lemmadata = load_data(*langcodes)
     # read files
-    for pathname, filename in find_files(mydir):
-        # read data
-        with open(os.path.join(pathname, filename), 'rb') as filehandle:
-            mydata = filehandle.read()
-        mytree = load_html(mydata)
-        # compute difference in days
-        timediff = calc_timediff(mytree.xpath('//date')[0].text)
-        if timediff is None:
-            continue
-        # process
-        text = sanitize(' '.join(mytree.xpath('//text')[0].itertext()))
-        for token in simple_tokenizer(text):
-            myvocab = store_lemmaform(token, timediff, myvocab, lemmadata)
+    #with ThreadPoolExecutor(max_workers=1) as executor:  # min(cpu_count()*2, 16)
+    #    futures = {executor.submit(read_file, f, lemmadata): f for f in find_files(mydir)}
+    #    for future in as_completed(futures):
+    #        for token, timediff in future.result():
+    #            myvocab[token] = np.append(myvocab[token], timediff)
+    for filepath in find_files(mydir):
+        for token, timediff in read_file(filepath, lemmadata):
+            myvocab[token] = np.append(myvocab[token], timediff)
     return myvocab
 
 
@@ -81,8 +94,7 @@ def load_wordlist(myfile, langcodes=None):
         lemmadata = load_data(*langcodes)
     with open(filepath, 'r', encoding='utf-8') as filehandle:
         for line in filehandle:
-            line = line.strip()
-            columns = line.split('\t')
+            columns = line.strip().split('\t')
             if len(columns) != 2:
                 print('invalid line:', line)
                 continue
@@ -92,9 +104,9 @@ def load_wordlist(myfile, langcodes=None):
             if timediff is None:
                 continue
             if langcodes is not None:
-                # load language data
-                lemmadata = load_data(langcodes)
-                myvocab = store_lemmaform(token, timediff, myvocab, lemmadata)
+                result = filter_lemmaform(token, lemmadata)
+                if result is not None:
+                    myvocab[token] = np.append(myvocab[token], timediff)
             else:
                 myvocab[token] = np.append(myvocab[token], timediff)
     return myvocab
