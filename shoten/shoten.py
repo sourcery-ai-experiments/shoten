@@ -17,6 +17,8 @@ import numpy as np
 from simplemma import load_data, lemmatize, simple_tokenizer, is_known
 from trafilatura.utils import load_html #, sanitize
 
+from .filters import combined_filters
+
 
 today = datetime.today()
 digitsfilter = re.compile(r'[^\W\d\.]', re.UNICODE)
@@ -52,11 +54,9 @@ def filter_lemmaform(token, lemmadata):
 
 
 def read_file(filepath, lemmadata):
-    resultlist = []
     # read data
     with open(filepath, 'rb') as filehandle:
-        mydata = filehandle.read()
-    mytree = load_html(mydata)
+        mytree = load_html(filehandle.read())
     # compute difference in days
     timediff = calc_timediff(mytree.xpath('//date')[0].text)
     if timediff is not None:
@@ -64,14 +64,13 @@ def read_file(filepath, lemmadata):
         for token in simple_tokenizer(' '.join(mytree.xpath('//text')[0].itertext())):
             result = filter_lemmaform(token, lemmadata)
             if result is not None:
-                # store tuple
-                resultlist.append((result, timediff))
-    return resultlist
+                # return tuple
+                yield result, timediff
 
 
 def gen_wordlist(mydir, langcodes):
     # init
-    myvocab = defaultdict(partial(np.array, [], dtype='i'))
+    myvocab = defaultdict(partial(np.array, [], dtype='H')) # I
     # load language data
     lemmadata = load_data(*langcodes)
     # read files
@@ -88,7 +87,7 @@ def gen_wordlist(mydir, langcodes):
 
 def load_wordlist(myfile, langcodes=None):
     filepath = str(Path(__file__).parent / myfile)
-    myvocab = defaultdict(partial(np.array, [], dtype='i'))
+    myvocab = defaultdict(partial(np.array, [], dtype='H')) # I
     if langcodes is not None:
         # load language data
         lemmadata = load_data(*langcodes)
@@ -120,6 +119,14 @@ def pickle_wordinfo(mydict, filepath):
 def unpickle_wordinfo(filepath):
     with gzip.open(filepath) as filehandle:
         return pickle.load(filehandle)
+
+
+def apply_filters(myvocab, setting='normal'):
+    if setting not in ('loose', 'normal', 'strict'):
+        print('invalid setting:', setting)
+        setting = 'normal'
+    for wordform in sorted(combined_filters(myvocab, setting)):
+        print(wordform)
 
 
 if __name__ == '__main__':
