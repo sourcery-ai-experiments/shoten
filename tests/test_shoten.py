@@ -3,10 +3,13 @@
 """Tests for `shoten` package."""
 
 import pytest
+import sys
 
 from pathlib import Path
+from unittest.mock import patch
 
 from shoten import *
+from shoten.cli import parse_args, process_args
 
 
 
@@ -26,6 +29,17 @@ def test_basics():
     # generate from XML file
     myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), ('de', 'en'))
     assert 'Messengerdienst' in myvocab
+
+
+def test_cli():
+    """Basic tests for command-line interface."""
+    mydir = str(Path(__file__).parent / 'testdir')
+    testargs = ['', '--read-dir', mydir, '-l', 'de', '--filter-level', 'loose']
+    with patch.object(sys, 'argv', testargs):
+        args = parse_args(testargs)
+    process_args(args)
+    
+
 
 #def test_readme():
 #    """Test function to verify readme examples."""

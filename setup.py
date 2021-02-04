@@ -12,7 +12,8 @@ with open('README.rst') as readme_file:
 
 requirements = [
                    'numpy',
-                   'simplemma >= 0.2.0',
+                   'scikit-learn >= 0.22',
+                   'simplemma >= 0.2.1',
                    'trafilatura >= 0.7.0'
                ]
 
@@ -43,6 +44,9 @@ setup(
         'Topic :: Text Processing :: Linguistic',
     ],
     description="...",
+    entry_points = {
+        'console_scripts': ['shoten=shoten.cli:main'],
+    },
     install_requires=requirements,
     license="GPLv3+",
     long_description=readme, # + '\n\n' + history,
