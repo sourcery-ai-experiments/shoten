@@ -1,8 +1,9 @@
 """Main module."""
 
 
-import gzip
+import _pickle as cpickle
 import pickle
+import gzip
 import re
 import string
 
@@ -67,6 +68,7 @@ def dehyphen_vocab(vocab):
             candidate = candidate.capitalize()
         # fusion occurrence lists and schedule for deletion
         if candidate in vocab:
+            #vocab[candidate].extend(vocab[wordform])
             for timediff in vocab[wordform]:
                 vocab[candidate] = np.append(vocab[candidate], timediff)
             deletions.append(wordform)
@@ -94,7 +96,7 @@ def read_file(filepath, lemmadata):
 
 def gen_wordlist(mydir, langcodes):
     # init
-    myvocab = defaultdict(partial(np.array, [], dtype='H')) # I
+    myvocab = defaultdict(list)
     # load language data
     lemmadata = load_data(*langcodes)
     # read files
@@ -105,14 +107,16 @@ def gen_wordlist(mydir, langcodes):
     #            myvocab[token] = np.append(myvocab[token], timediff)
     for filepath in find_files(mydir):
         for token, timediff in read_file(filepath, lemmadata):
-            myvocab[token] = np.append(myvocab[token], timediff)
+            myvocab[token].append(timediff)
     # post-processing
-    return dehyphen_vocab(myvocab)
+    for item in dehyphen_vocab(myvocab):
+        myvocab[item] = np.array(myvocab[item])
+    return myvocab
 
 
 def load_wordlist(myfile, langcodes=None):
     filepath = str(Path(__file__).parent / myfile)
-    myvocab = defaultdict(partial(np.array, [], dtype='H')) # I
+    myvocab = defaultdict(list)
     if langcodes is not None:
         # load language data
         lemmadata = load_data(*langcodes)
@@ -130,21 +134,23 @@ def load_wordlist(myfile, langcodes=None):
             if langcodes is not None:
                 result = filter_lemmaform(token, lemmadata)
                 if result is not None:
-                    myvocab[token] = np.append(myvocab[token], timediff)
+                    myvocab[token].append(timediff)
             else:
-                myvocab[token] = np.append(myvocab[token], timediff)
+                myvocab[token].append(timediff)
     # post-processing
-    return dehyphen_vocab(myvocab)
+    for item in dehyphen_vocab(myvocab):
+        myvocab[item] = np.array(myvocab[item])
+    return myvocab
 
 
 def pickle_wordinfo(mydict, filepath):
     with gzip.open(filepath, 'w') as filehandle:
-        pickle.dump(mydict, filehandle, protocol=pickle.HIGHEST_PROTOCOL)
+        cpickle.dump(mydict, filehandle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def unpickle_wordinfo(filepath):
     with gzip.open(filepath) as filehandle:
-        return pickle.load(filehandle)
+        return cpickle.load(filehandle)
 
 
 def apply_filters(myvocab, setting='normal'):
