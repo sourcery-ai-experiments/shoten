@@ -12,7 +12,7 @@ with open('README.rst') as readme_file:
 
 requirements = [
                    'numpy',
-                   'scikit-learn >= 0.22',
+                   'scikit-learn >= 0.20.4',
                    'simplemma >= 0.2.1',
                    'trafilatura >= 0.7.0'
                ]

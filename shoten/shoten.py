@@ -23,7 +23,7 @@ from .filters import combined_filters
 
 
 today = datetime.today()
-digitsfilter = re.compile(r'[^\W\d\.]', re.UNICODE)
+digitsfilter = re.compile(r'[^\W\d\.-]')
 
 
 def find_files(dirname):
@@ -49,7 +49,8 @@ def filter_lemmaform(token, lemmadata):
     if len(token) == 0 or token.isnumeric() or not digitsfilter.search(token):
         return None
     # potential new words only
-    if is_known(token, lemmadata) is False and len([l for l in token if l.isupper()]) < 4:
+    if is_known(token, lemmadata) is False and \
+    sum(map(str.isupper, token)) < 4 and sum(map(str.isdigit, token)) < 4:
         try:
             return lemmatize(token, lemmadata, greedy=True, silent=False)
         except ValueError:

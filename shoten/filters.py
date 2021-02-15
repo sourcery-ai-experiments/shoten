@@ -1,10 +1,11 @@
 """Filters meant to reduce noise."""
 
+
 from math import ceil
 
 import numpy as np
 
-from sklearn.feature_extraction.text import TfidfVectorizer # CountVectorizer, HashingVectorizer
+from sklearn.feature_extraction.text import CountVectorizer # TfidfVectorizer, HashingVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 
@@ -35,10 +36,12 @@ def hapax_filter(myvocab):
     return myvocab
 
 
-def shortness_filter(myvocab, threshold=7):
+def shortness_filter(myvocab, threshold=20):
     '''Eliminate short words'''
     old_len = len(myvocab)
-    for token in [t for t in myvocab if len(t) < threshold]:
+    lengths = np.array([len(l) for l in myvocab])
+    lenthreshold = np.percentile(lengths, threshold)
+    for token in [t for t in myvocab if len(t) < lenthreshold]:
         del myvocab[token]
     print_changes('short words', old_len, len(myvocab))
     return myvocab
@@ -57,28 +60,29 @@ def frequency_filter(myvocab, max_perc=50, min_perc=.001): # 50 / 0.01
     return myvocab
 
 
-def oldest_filter(myvocab, threshold=20):  # 50
+def oldest_filter(myvocab, threshold=50):
     '''Reduce number of candidate by stripping the oldest.'''
     # todo: what about cases like [365, 1, 1, 1] ?
     old_len = len(myvocab)
     myratios = np.array([np.sum(myvocab[l])/myvocab[l].shape[0] for l in myvocab])
-    # print(np.percentile(myratios, 40), np.percentile(myratios, 50), np.percentile(myratios, 60))
-    threshold = np.percentile(myratios, 50)
+    threshold = np.percentile(myratios, threshold)
     for token in [t for t in myvocab if np.sum(myvocab[t])/myvocab[t].shape[0] > threshold]:
         del myvocab[token]
     print_changes('oldest', old_len, len(myvocab))
     return myvocab
 
 
-def zipf_filter(myvocab, freqperc=35, lenperc=65):
+def zipf_filter(myvocab, freqperc=35, lenperc=65, verbose=False):
     '''Filter candidates based on a approximation of Zipf's law.'''
+    # todo: count length without hyphen or punctuation: len(l) - l.count('-')
     old_len = len(myvocab)
     freqs = np.array([myvocab[l].shape[0] for l in myvocab])
     freqthreshold = np.percentile(freqs, freqperc)
     lengths = np.array([len(l) for l in myvocab])
     lenthreshold = np.percentile(lengths, lenperc)
     for token in [t for t in myvocab if myvocab[t].shape[0] >= freqthreshold and len(t) <= lenthreshold]:
-        # print(myvocab[token].shape[0], len(token), token)
+        if verbose is True:
+            print(token, len(token), myvocab[token].shape[0])
         del myvocab[token]
     print_changes('zipf frequency', old_len, len(myvocab))
     return myvocab
@@ -111,27 +115,37 @@ def freshness_filter(myvocab, percentage=10):
     return myvocab
 
 
-def ngram_filter(myvocab, threshold=95, verbose=False):
+def ngram_filter(myvocab, threshold=90, verbose=False):
     '''Find dissimilar tokens based on character n-gram occurrences.'''
+    lengths = np.array([len(l) for l in myvocab])
+    freqs = np.array([myvocab[l].shape[0] for l in myvocab])
+    freqthreshold = np.percentile(freqs, 90)
+    for i in (50, 45, 40, 35, 30):
+        lenthreshold = np.percentile(lengths, i)
+        mytokens = [t for t in myvocab if (len(t) <= lenthreshold or myvocab[t].shape[0] > freqthreshold)]
+        if len(mytokens) <= 15000:
+            break
+    if len(mytokens) > 15000:
+        print('Vocabulary size too large, skipping n-gram filtering')
+        return myvocab
     # token cosine similarity
-    mytokens = list(t for t in myvocab)
     max_exp = 21
-    vectorizer = TfidfVectorizer(analyzer='char', max_features=2 ** max_exp, ngram_range=(1,3), strip_accents=None, lowercase=True, max_df=0.95, min_df=0.1)
+    vectorizer = CountVectorizer(analyzer='char', max_features=2 ** max_exp, ngram_range=(1,4), strip_accents=None, lowercase=True, max_df=1.0, min_df=0.1)
     # sublinear_tf=True, binary=True
     count_matrix = vectorizer.fit_transform(mytokens)
     cosine_similarities = cosine_similarity(count_matrix)  # linear_kernel, laplacian_kernel, rbf_kernel, sigmoid_kernel
     myscores = dict()
     for rownum, _ in enumerate(mytokens):
-        # score = np.median(cosine_similarities[:, rownum]) * (np.log(len(mytokens[rownum]))/len(mytokens[rownum]))
-        myscores[mytokens[rownum]] = 1 - np.median(cosine_similarities[:, rownum])
+        #myscores[mytokens[rownum]] = np.median(cosine_similarities[:, rownum]) * (np.log(len(mytokens[rownum]))/len(mytokens[rownum]))
+        myscores[mytokens[rownum]] = 1 - np.mean(cosine_similarities[:, rownum])
     # print info
-    #if verbose is True:
-    #    resultsize = 20 # :resultsize*2
-    #    for k, v in sorted(myscores.items(), key=lambda item: item[1], reverse=True)[:resultsize]:
-    #        print(k, v)
-    #    print()
-    #    for k, v in sorted(myscores.items(), key=lambda item: item[1])[:resultsize]:
-    #        print(k, v)
+    if verbose is True:
+        resultsize = 20 # :resultsize*2
+        for k, v in sorted(myscores.items(), key=lambda item: item[1], reverse=True)[:resultsize]:
+            print(k, v)
+        #print()
+        for k, v in sorted(myscores.items(), key=lambda item: item[1])[:resultsize]:
+            print(k, v)
     # process
     old_len = len(myvocab)
     mylist = np.array([myscores[s] for s in myscores])
