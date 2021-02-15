@@ -4,6 +4,7 @@
 import gzip
 import pickle
 import re
+import string
 
 from collections import defaultdict
 # from concurrent.futures import as_completed, ThreadPoolExecutor
@@ -41,23 +42,46 @@ def calc_timediff(mydate):
 
 def filter_lemmaform(token, lemmadata):
     # apply filter first
-    if 5 < len(token) < 50 and digitsfilter.search(token) and not token.endswith('-'):
-        # potential new words only
-        if is_known(token, lemmadata) is False and len([l for l in token if l.isupper()]) < 4:
-            try:
-                return lemmatize(token, lemmadata, greedy=True, silent=False)
-            except ValueError:
-                # and token[:-1] not in myvocab and token[:-1].lower() not in myvocab:
-                # token = token.lower()
-                return token
+    if len(token) < 5 or len(token) > 50 or token.endswith('-'):
+        return None
+    token = token.rstrip(string.punctuation)
+    if len(token) == 0 or token.isnumeric() or not digitsfilter.search(token):
+        return None
+    # potential new words only
+    if is_known(token, lemmadata) is False and len([l for l in token if l.isupper()]) < 4:
+        try:
+            return lemmatize(token, lemmadata, greedy=True, silent=False)
+        except ValueError:
+            # and token[:-1] not in myvocab and token[:-1].lower() not in myvocab:
+            # token = token.lower()
+            return token
     return None
+
+
+def dehyphen_vocab(vocab):
+    deletions = []
+    for wordform in [w for w in vocab if '-' in w]:
+        splitted = wordform.split('-')
+        candidate = ''.join([t.lower() for t in splitted])
+        if wordform[0].isupper():
+            candidate = candidate.capitalize()
+        # fusion occurrence lists and schedule for deletion
+        if candidate in vocab:
+            for timediff in vocab[wordform]:
+                vocab[candidate] = np.append(vocab[candidate], timediff)
+            deletions.append(wordform)
+    for word in deletions:
+        del vocab[word]
+    return vocab
 
 
 def read_file(filepath, lemmadata):
     # read data
     with open(filepath, 'rb') as filehandle:
         mytree = load_html(filehandle.read())
-    # compute difference in days
+    # todo: XML-TEI + XML
+    # ...
+    # XML-TEI: compute difference in days
     timediff = calc_timediff(mytree.xpath('//date')[0].text)
     if timediff is not None:
         # process
@@ -82,7 +106,8 @@ def gen_wordlist(mydir, langcodes):
     for filepath in find_files(mydir):
         for token, timediff in read_file(filepath, lemmadata):
             myvocab[token] = np.append(myvocab[token], timediff)
-    return myvocab
+    # post-processing
+    return dehyphen_vocab(myvocab)
 
 
 def load_wordlist(myfile, langcodes=None):
@@ -108,7 +133,8 @@ def load_wordlist(myfile, langcodes=None):
                     myvocab[token] = np.append(myvocab[token], timediff)
             else:
                 myvocab[token] = np.append(myvocab[token], timediff)
-    return myvocab
+    # post-processing
+    return dehyphen_vocab(myvocab)
 
 
 def pickle_wordinfo(mydict, filepath):
