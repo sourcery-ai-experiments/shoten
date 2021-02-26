@@ -74,7 +74,7 @@ def oldest_filter(myvocab, threshold=50):
     return myvocab
 
 
-def zipf_filter(myvocab, freqperc=35, lenperc=65, verbose=False):
+def zipf_filter(myvocab, freqperc=65, lenperc=35, verbose=False):
     '''Filter candidates based on a approximation of Zipf's law.'''
     # todo: count length without hyphen or punctuation: len(l) - l.count('-')
     old_len = len(myvocab)
@@ -82,10 +82,14 @@ def zipf_filter(myvocab, freqperc=35, lenperc=65, verbose=False):
     freqthreshold = np.percentile(freqs, freqperc)
     lengths = np.array([len(l) for l in myvocab])
     lenthreshold = np.percentile(lengths, lenperc)
+    deletions = []
     for token in [t for t in myvocab if myvocab[t].shape[0] >= freqthreshold and len(t) <= lenthreshold]:
-        if verbose is True:
-            print(token, len(token), myvocab[token].shape[0])
+        deletions.append(token)
+        # if verbose is True:
+            # print(token, len(token), myvocab[token].shape[0])
         del myvocab[token]
+    if verbose is True:
+        print(sorted(deletions))
     print_changes('zipf frequency', old_len, len(myvocab))
     return myvocab
 
@@ -124,7 +128,7 @@ def ngram_filter(myvocab, threshold=90, verbose=False):
     for i in (70, 65, 60, 55, 50, 45, 40):
         maxlengthreshold = np.percentile(lengths, i)
         mytokens = [t for t in myvocab if minlengthreshold <= len(t) <= maxlengthreshold]
-        print(i, len(mytokens))
+        #print(i, len(mytokens))
         if len(mytokens) <= MAX_NGRAM_VOC:
             break
     if len(mytokens) > MAX_NGRAM_VOC:
