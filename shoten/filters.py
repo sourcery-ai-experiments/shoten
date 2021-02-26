@@ -5,8 +5,10 @@ from math import ceil
 
 import numpy as np
 
-from sklearn.feature_extraction.text import CountVectorizer # TfidfVectorizer, HashingVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
+MAX_NGRAM_VOC = 15000
 
 
 def print_changes(phase, old_len, new_len):
@@ -118,20 +120,33 @@ def freshness_filter(myvocab, percentage=10):
 def ngram_filter(myvocab, threshold=90, verbose=False):
     '''Find dissimilar tokens based on character n-gram occurrences.'''
     lengths = np.array([len(l) for l in myvocab])
-    freqs = np.array([myvocab[l].shape[0] for l in myvocab])
-    freqthreshold = np.percentile(freqs, 90)
-    for i in (50, 45, 40, 35, 30):
-        lenthreshold = np.percentile(lengths, i)
-        mytokens = [t for t in myvocab if (len(t) <= lenthreshold or myvocab[t].shape[0] > freqthreshold)]
-        if len(mytokens) <= 15000:
+    minlengthreshold = np.percentile(lengths, 1)
+    for i in (70, 65, 60, 55, 50, 45, 40):
+        maxlengthreshold = np.percentile(lengths, i)
+        mytokens = [t for t in myvocab if minlengthreshold <= len(t) <= maxlengthreshold]
+        print(i, len(mytokens))
+        if len(mytokens) <= MAX_NGRAM_VOC:
             break
-    if len(mytokens) > 15000:
+    if len(mytokens) > MAX_NGRAM_VOC:
         print('Vocabulary size too large, skipping n-gram filtering')
         return myvocab
+    old_len = len(myvocab)
     # token cosine similarity
     max_exp = 21
-    vectorizer = CountVectorizer(analyzer='char', max_features=2 ** max_exp, ngram_range=(1,4), strip_accents=None, lowercase=True, max_df=1.0, min_df=0.1)
-    # sublinear_tf=True, binary=True
+    vectorizer = CountVectorizer(analyzer='char', max_features=2 ** max_exp, ngram_range=(1,4), strip_accents=None, lowercase=True, max_df=1.0)
+    firstset = set(compute_deletions(mytokens, vectorizer, threshold))
+    vectorizer = TfidfVectorizer(analyzer='char', max_features=2 ** max_exp, ngram_range=(1,4), strip_accents=None, lowercase=True, max_df=1.0, sublinear_tf=True, binary=True)
+    secondset = set(compute_deletions(mytokens, vectorizer, threshold))
+    for token in firstset.intersection(secondset):
+        del myvocab[token]
+    if verbose is True:
+        print(sorted(firstset.intersection(secondset)))
+    print_changes('ngrams', old_len, len(myvocab))
+    return myvocab
+
+
+def compute_deletions(mytokens, vectorizer, threshold):
+    '''Compute deletion list based on n-gram dissimilarities.'''
     count_matrix = vectorizer.fit_transform(mytokens)
     cosine_similarities = cosine_similarity(count_matrix)  # linear_kernel, laplacian_kernel, rbf_kernel, sigmoid_kernel
     myscores = dict()
@@ -139,20 +154,13 @@ def ngram_filter(myvocab, threshold=90, verbose=False):
         #myscores[mytokens[rownum]] = np.median(cosine_similarities[:, rownum]) * (np.log(len(mytokens[rownum]))/len(mytokens[rownum]))
         myscores[mytokens[rownum]] = 1 - np.mean(cosine_similarities[:, rownum])
     # print info
-    if verbose is True:
-        resultsize = 20 # :resultsize*2
-        for k, v in sorted(myscores.items(), key=lambda item: item[1], reverse=True)[:resultsize]:
-            print(k, v)
-        #print()
-        for k, v in sorted(myscores.items(), key=lambda item: item[1])[:resultsize]:
-            print(k, v)
+    #if verbose is True:
+    #    resultsize = 20 # :resultsize*2
+    #    for k, v in sorted(myscores.items(), key=lambda item: item[1], reverse=True)[:resultsize]:
+    #        print(k, v)
+    #    #print()
+    #    for k, v in sorted(myscores.items(), key=lambda item: item[1])[:resultsize]:
+    #        print(k, v)
     # process
-    old_len = len(myvocab)
     mylist = np.array([myscores[s] for s in myscores])
-    mydeletions = [s for s in myscores if myscores[s] >= np.percentile(mylist, threshold)]
-    for token in mydeletions:
-        del myvocab[token]
-    if verbose is True:
-        print(sorted(mydeletions))
-    print_changes('ngrams', old_len, len(myvocab))
-    return myvocab
+    return [s for s in myscores if myscores[s] >= np.percentile(mylist, threshold)]
