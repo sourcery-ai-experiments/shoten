@@ -55,7 +55,7 @@ def frequency_filter(myvocab, max_perc=50, min_perc=.001): # 50 / 0.01
     myfreq = np.array([myvocab[l].shape[0] for l in myvocab])
     min_thres, max_thres = np.percentile(myfreq, min_perc), np.percentile(myfreq, max_perc)
     for token in [t for t in myvocab if
-                  myvocab[t].shape[0] <= min_thres or myvocab[t].shape[0] > max_thres
+                  myvocab[t].shape[0] < min_thres or myvocab[t].shape[0] > max_thres
                  ]:
         del myvocab[token]
     print_changes('most/less frequent', old_len, len(myvocab))
