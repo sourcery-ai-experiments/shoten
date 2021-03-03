@@ -78,7 +78,7 @@ def dehyphen_vocab(vocab):
     return vocab
 
 
-def read_file(filepath, lemmadata):
+def read_file(filepath, lemmadata, maxdiff=1000):
     # read data
     with open(filepath, 'rb') as filehandle:
         mytree = load_html(filehandle.read())
@@ -86,7 +86,7 @@ def read_file(filepath, lemmadata):
     # ...
     # XML-TEI: compute difference in days
     timediff = calc_timediff(mytree.xpath('//date')[0].text)
-    if timediff is not None:
+    if timediff is not None and timediff <= maxdiff:
         # process
         for token in simple_tokenizer(' '.join(mytree.xpath('//text')[0].itertext())):
             result = filter_lemmaform(token, lemmadata)
@@ -95,7 +95,7 @@ def read_file(filepath, lemmadata):
                 yield result, timediff
 
 
-def gen_wordlist(mydir, langcodes):
+def gen_wordlist(mydir, langcodes, maxdiff=1000):
     # init
     myvocab = defaultdict(list)
     # load language data
@@ -107,7 +107,7 @@ def gen_wordlist(mydir, langcodes):
     #        for token, timediff in future.result():
     #            myvocab[token] = np.append(myvocab[token], timediff)
     for filepath in find_files(mydir):
-        for token, timediff in read_file(filepath, lemmadata):
+        for token, timediff in read_file(filepath, lemmadata, maxdiff):
             myvocab[token].append(timediff)
     # post-processing
     for item in dehyphen_vocab(myvocab):
@@ -115,7 +115,7 @@ def gen_wordlist(mydir, langcodes):
     return myvocab
 
 
-def load_wordlist(myfile, langcodes=None):
+def load_wordlist(myfile, langcodes=None, maxdiff=1000):
     filepath = str(Path(__file__).parent / myfile)
     myvocab = defaultdict(list)
     if langcodes is not None:
@@ -130,7 +130,7 @@ def load_wordlist(myfile, langcodes=None):
             token, date = columns[0], columns[1]
             # compute difference in days
             timediff = calc_timediff(date)
-            if timediff is None:
+            if timediff is None or timediff > maxdiff:
                 continue
             if langcodes is not None:
                 result = filter_lemmaform(token, lemmadata)
