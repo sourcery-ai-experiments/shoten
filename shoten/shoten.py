@@ -43,7 +43,7 @@ def calc_timediff(mydate):
 
 def filter_lemmaform(token, lemmadata):
     # apply filter first
-    if len(token) < 5 or len(token) > 50 or token.endswith('-'):
+    if len(token) < 5 or len(token) > 50 or token.endswith('-') or token.startswith('@') or token.startswith('#'):
         return None
     token = token.rstrip(string.punctuation)
     if len(token) == 0 or token.isnumeric() or not digitsfilter.search(token):
