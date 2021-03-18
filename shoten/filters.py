@@ -62,6 +62,25 @@ def frequency_filter(myvocab, max_perc=50, min_perc=.001): # 50 / 0.01
     return myvocab
 
 
+def hyphenated_filter(myvocab, perc=50, verbose=False): # threshold in percent
+    '''Reduce dict size by deleting hyphenated tokens when the parts are frequent.'''
+    deletions, old_len = [], len(myvocab)
+    myfreqs = np.array([myvocab[l].shape[0] for l in myvocab])
+    threshold = np.percentile(myfreqs, perc)
+    for word in [w for w in myvocab if '-' in w]:
+        mylist = word.split('-')
+        firstpart, secondpart = mylist[0], mylist[1]
+        if firstpart in myvocab and myvocab[firstpart].shape[0] > threshold or \
+           secondpart in myvocab and myvocab[secondpart].shape[0] > threshold:
+            deletions.append(word)
+    if verbose is True:
+        print(sorted(deletions))
+    for item in deletions:
+        del myvocab[item]
+    print_changes('hyphenated', old_len, len(myvocab))
+    return myvocab
+
+
 def oldest_filter(myvocab, threshold=50):
     '''Reduce number of candidate by stripping the oldest.'''
     # todo: what about cases like [365, 1, 1, 1] ?
