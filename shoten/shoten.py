@@ -95,7 +95,7 @@ def read_file(filepath, lemmadata, maxdiff=1000):
                 yield result, timediff
 
 
-def gen_wordlist(mydir, langcodes, maxdiff=1000):
+def gen_wordlist(mydir, langcodes=[], maxdiff=1000):
     # init
     myvocab = defaultdict(list)
     # load language data
@@ -115,12 +115,11 @@ def gen_wordlist(mydir, langcodes, maxdiff=1000):
     return myvocab
 
 
-def load_wordlist(myfile, langcodes=None, maxdiff=1000):
+def load_wordlist(myfile, langcodes=[], maxdiff=1000):
     filepath = str(Path(__file__).parent / myfile)
     myvocab = defaultdict(list)
-    if langcodes is not None:
-        # load language data
-        lemmadata = load_data(*langcodes)
+    # load language data
+    lemmadata = load_data(*langcodes)
     with open(filepath, 'r', encoding='utf-8') as filehandle:
         for line in filehandle:
             columns = line.strip().split('\t')
@@ -132,7 +131,7 @@ def load_wordlist(myfile, langcodes=None, maxdiff=1000):
             timediff = calc_timediff(date)
             if timediff is None or timediff > maxdiff:
                 continue
-            if langcodes is not None:
+            if len(langcodes) > 0:
                 result = filter_lemmaform(token, lemmadata)
                 if result is not None:
                     myvocab[token].append(timediff)

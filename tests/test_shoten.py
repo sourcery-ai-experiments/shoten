@@ -29,6 +29,9 @@ def test_basics():
     # generate from XML file
     myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), ('de', 'en'))
     assert 'Messengerdienst' in myvocab
+    # without language codes
+    myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), [])
+    assert 'Messengerdienst' in myvocab
 
 
 def test_cli():
