@@ -29,10 +29,10 @@ def combined_filters(myvocab, setting):
                ))
 
 
-def hapax_filter(myvocab):
+def hapax_filter(myvocab, freqcount=2):
     '''Eliminate hapax legomena and delete same date only.'''
     old_len = len(myvocab)
-    for token in [t for t in myvocab if np.unique(myvocab[t]).shape[0] <= 2]:
+    for token in [t for t in myvocab if np.unique(myvocab[t]).shape[0] <= freqcount]:
         del myvocab[token]
     print_changes('sameness/hapax', old_len, len(myvocab))
     return myvocab

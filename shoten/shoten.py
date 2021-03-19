@@ -17,7 +17,7 @@ from pathlib import Path
 import numpy as np
 
 from simplemma import load_data, lemmatize, simple_tokenizer, is_known
-from trafilatura.utils import load_html #, sanitize
+from htmldate.utils import load_html #, sanitize
 
 from .filters import combined_filters
 
