@@ -13,8 +13,8 @@ with open('README.rst') as readme_file:
 requirements = [
                    'numpy',
                    'scikit-learn >= 0.20.4',
-                   'simplemma >= 0.2.1',
-                   'trafilatura >= 0.7.0'
+                   'simplemma >= 0.2.2',
+                   'htmldate >= 0.8.1'
                ]
 
 setup_requirements = []
