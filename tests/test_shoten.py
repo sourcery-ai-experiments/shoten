@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 from shoten import *
 from shoten.cli import parse_args, process_args
+from shoten.filters import *
 
 
 
@@ -20,12 +21,13 @@ def test_basics():
     assert calc_timediff('2030-01-01') < 1
     # load words
     myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
-    assert len(myvocab) == 2
+    assert len(myvocab) == 3
+    assert myvocab['Other']['sources'] == ['Source1']
     # pickling and unpickling
     filepath = str(Path(__file__).parent / 'test.pickle')
     pickle_wordinfo(myvocab, filepath)
     myvocab2 = unpickle_wordinfo(filepath)
-    assert len(myvocab2) == len(myvocab) and myvocab2['Tests'].all() == myvocab['Tests'].all()
+    assert len(myvocab2) == len(myvocab) and myvocab2['Tests']['time_series'].all() == myvocab['Tests']['time_series'].all()
     # generate from XML file
     myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), ('de', 'en'))
     assert 'Messengerdienst' in myvocab
@@ -41,6 +43,15 @@ def test_cli():
     with patch.object(sys, 'argv', testargs):
         args = parse_args(testargs)
     process_args(args)
+
+
+def test_filters():
+    myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
+    assert len(myvocab) == 3
+    myvocab = sources_filter(myvocab)
+    assert len(myvocab) == 2
+    myvocab = shortness_filter(myvocab)
+    assert len(myvocab) == 1
     
 
 

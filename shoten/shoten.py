@@ -60,6 +60,17 @@ def filter_lemmaform(token, lemmadata):
     return None
 
 
+def putinvocab(myvocab, wordform, timediff, source):
+    if wordform not in myvocab:
+        myvocab[wordform] = dict()
+        myvocab[wordform]['time_series'] = []
+        myvocab[wordform]['sources'] = []
+    myvocab[wordform]['time_series'].append(timediff)
+    if source is not None and len(source) > 0:
+        myvocab[wordform]['sources'].append(source)
+    return myvocab
+
+
 def dehyphen_vocab(vocab):
     deletions = []
     for wordform in [w for w in vocab if '-' in w]:
@@ -70,8 +81,8 @@ def dehyphen_vocab(vocab):
         # fusion occurrence lists and schedule for deletion
         if candidate in vocab:
             #vocab[candidate].extend(vocab[wordform])
-            for timediff in vocab[wordform]:
-                vocab[candidate] = np.append(vocab[candidate], timediff)
+            for timediff in vocab[wordform]['time_series']:
+                vocab[candidate]['time_series'].append(timediff)
             deletions.append(wordform)
     for word in deletions:
         del vocab[word]
@@ -87,17 +98,18 @@ def read_file(filepath, lemmadata, maxdiff=1000):
     # XML-TEI: compute difference in days
     timediff = calc_timediff(mytree.xpath('//date')[0].text)
     if timediff is not None and timediff <= maxdiff:
+        source = mytree.xpath('//publisher')[0].text
         # process
         for token in simple_tokenizer(' '.join(mytree.xpath('//text')[0].itertext())):
             result = filter_lemmaform(token, lemmadata)
             if result is not None:
                 # return tuple
-                yield result, timediff
+                yield result, timediff, source
 
 
 def gen_wordlist(mydir, langcodes=[], maxdiff=1000):
     # init
-    myvocab = defaultdict(list)
+    myvocab = dict()
     # load language data
     lemmadata = load_data(*langcodes)
     # read files
@@ -107,11 +119,12 @@ def gen_wordlist(mydir, langcodes=[], maxdiff=1000):
     #        for token, timediff in future.result():
     #            myvocab[token] = np.append(myvocab[token], timediff)
     for filepath in find_files(mydir):
-        for token, timediff in read_file(filepath, lemmadata, maxdiff):
-            myvocab[token].append(timediff)
+        for token, timediff, source in read_file(filepath, lemmadata, maxdiff):
+            myvocab = putinvocab(myvocab, token, timediff, source)
     # post-processing
-    for item in dehyphen_vocab(myvocab):
-        myvocab[item] = np.array(myvocab[item])
+    myvocab = dehyphen_vocab(myvocab)
+    for wordform in myvocab:
+        myvocab[wordform]['time_series'] = np.array(myvocab[wordform]['time_series'])
     return myvocab
 
 
@@ -123,10 +136,13 @@ def load_wordlist(myfile, langcodes=[], maxdiff=1000):
     with open(filepath, 'r', encoding='utf-8') as filehandle:
         for line in filehandle:
             columns = line.strip().split('\t')
-            if len(columns) != 2:
+            if len(columns) == 2:
+                token, date, source = columns[0], columns[1], None
+            elif len(columns) == 3:
+                token, date, source = columns[0], columns[1], columns[2]
+            else:
                 print('invalid line:', line)
                 continue
-            token, date = columns[0], columns[1]
             # compute difference in days
             timediff = calc_timediff(date)
             if timediff is None or timediff > maxdiff:
@@ -134,12 +150,13 @@ def load_wordlist(myfile, langcodes=[], maxdiff=1000):
             if len(langcodes) > 0:
                 result = filter_lemmaform(token, lemmadata)
                 if result is not None:
-                    myvocab[token].append(timediff)
+                    myvocab = putinvocab(myvocab, token, timediff, source)
             else:
-                myvocab[token].append(timediff)
+                myvocab = putinvocab(myvocab, token, timediff, source)
     # post-processing
-    for item in dehyphen_vocab(myvocab):
-        myvocab[item] = np.array(myvocab[item])
+    myvocab = dehyphen_vocab(myvocab)
+    for wordform in myvocab:
+        myvocab[wordform]['time_series'] = np.array(myvocab[wordform]['time_series'])
     return myvocab
 
 
