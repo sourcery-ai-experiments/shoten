@@ -153,6 +153,19 @@ def sources_filter(myvocab, threshold=2):
     return myvocab
 
 
+def headings_filter(myvocab):
+    '''Filter words based on their presence in headings.'''
+    deletions = list()
+    for word in myvocab:
+        if myvocab[word]['headings'] is False:
+            deletions.append(word)
+    old_len = len(myvocab)
+    for item in deletions:
+        del myvocab[item]
+    print_changes('headings', old_len, len(myvocab))
+    return myvocab
+
+
 def ngram_filter(myvocab, threshold=90, verbose=False):
     '''Find dissimilar tokens based on character n-gram occurrences.'''
     lengths = np.array([len(l) for l in myvocab])

@@ -60,14 +60,17 @@ def filter_lemmaform(token, lemmadata):
     return None
 
 
-def putinvocab(myvocab, wordform, timediff, source):
+def putinvocab(myvocab, wordform, timediff, source, inheadings=False):
     if wordform not in myvocab:
         myvocab[wordform] = dict()
         myvocab[wordform]['time_series'] = []
         myvocab[wordform]['sources'] = []
+        myvocab[wordform]['headings'] = False
     myvocab[wordform]['time_series'].append(timediff)
     if source is not None and len(source) > 0:
         myvocab[wordform]['sources'].append(source)
+    if inheadings is True:
+        myvocab[wordform]['headings'] = True
     return myvocab
 
 
@@ -89,6 +92,13 @@ def dehyphen_vocab(vocab):
     return vocab
 
 
+def postprocessing(myvocab):
+    myvocab = dehyphen_vocab(myvocab)
+    for wordform in myvocab:
+        myvocab[wordform]['time_series'] = np.array(myvocab[wordform]['time_series'])
+    return myvocab
+
+
 def read_file(filepath, lemmadata, maxdiff=1000):
     # read data
     with open(filepath, 'rb') as filehandle:
@@ -99,12 +109,22 @@ def read_file(filepath, lemmadata, maxdiff=1000):
     timediff = calc_timediff(mytree.xpath('//date')[0].text)
     if timediff is not None and timediff <= maxdiff:
         source = mytree.xpath('//publisher')[0].text
+        # headings
+        headwords = set()
+        for heading in mytree.xpath('//fw'):
+            if heading.text_content() is not None:
+                # print(heading.text_content())
+                for token in simple_tokenizer(heading.text_content()):
+                    headwords.add(token)
         # process
         for token in simple_tokenizer(' '.join(mytree.xpath('//text')[0].itertext())):
+            inheadings = False
+            if token in headwords:
+                inheadings = True
             result = filter_lemmaform(token, lemmadata)
             if result is not None:
                 # return tuple
-                yield result, timediff, source
+                yield result, timediff, source, inheadings
 
 
 def gen_wordlist(mydir, langcodes=[], maxdiff=1000):
@@ -119,13 +139,10 @@ def gen_wordlist(mydir, langcodes=[], maxdiff=1000):
     #        for token, timediff in future.result():
     #            myvocab[token] = np.append(myvocab[token], timediff)
     for filepath in find_files(mydir):
-        for token, timediff, source in read_file(filepath, lemmadata, maxdiff):
-            myvocab = putinvocab(myvocab, token, timediff, source)
+        for token, timediff, source, inheadings in read_file(filepath, lemmadata, maxdiff):
+            myvocab = putinvocab(myvocab, token, timediff, source, inheadings)
     # post-processing
-    myvocab = dehyphen_vocab(myvocab)
-    for wordform in myvocab:
-        myvocab[wordform]['time_series'] = np.array(myvocab[wordform]['time_series'])
-    return myvocab
+    return postprocessing(myvocab)
 
 
 def load_wordlist(myfile, langcodes=[], maxdiff=1000):
@@ -154,10 +171,7 @@ def load_wordlist(myfile, langcodes=[], maxdiff=1000):
             else:
                 myvocab = putinvocab(myvocab, token, timediff, source)
     # post-processing
-    myvocab = dehyphen_vocab(myvocab)
-    for wordform in myvocab:
-        myvocab[wordform]['time_series'] = np.array(myvocab[wordform]['time_series'])
-    return myvocab
+    return postprocessing(myvocab)
 
 
 def pickle_wordinfo(mydict, filepath):
