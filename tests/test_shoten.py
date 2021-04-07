@@ -48,9 +48,12 @@ def test_cli():
 def test_filters():
     myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
     assert len(myvocab) == 3
-    myvocab = sources_filter(myvocab)
+    myvocab = sources_freqfilter(myvocab)
     assert len(myvocab) == 2
     myvocab = shortness_filter(myvocab)
+    assert len(myvocab) == 1
+    myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
+    myvocab = sources_filter(myvocab, {'Source1'})
     assert len(myvocab) == 1
     
 

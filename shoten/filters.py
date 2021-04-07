@@ -140,7 +140,7 @@ def freshness_filter(myvocab, percentage=10):
     return myvocab
 
 
-def sources_filter(myvocab, threshold=2):
+def sources_freqfilter(myvocab, threshold=2):
     '''Filter words based on source diversity.'''
     deletions = list()
     for word in myvocab:
@@ -149,7 +149,34 @@ def sources_filter(myvocab, threshold=2):
     old_len = len(myvocab)
     for item in deletions:
         del myvocab[item]
-    print_changes('sources', old_len, len(myvocab))
+    print_changes('sources freq', old_len, len(myvocab))
+    return myvocab
+
+
+def sources_filter(myvocab, myset):
+    '''Only keep the words for which the source contains at least
+       one string listed in the input set.'''
+    deletions = list()
+    for word in myvocab:
+        deletion_flag = True
+        if myvocab[word]['sources'] != []:
+            for source in myvocab[word]['sources']:
+                # for / else construct
+                for string in myset:
+                    if string in source:
+                        deletion_flag = False
+                        break 
+                else:
+                    continue
+                # inner loop was broken, break the outer
+                break
+        # record deletion
+        if deletion_flag is True:
+            deletions.append(word)
+    old_len = len(myvocab)
+    for item in deletions:
+        del myvocab[item]
+    print_changes('sources list', old_len, len(myvocab))
     return myvocab
 
 
