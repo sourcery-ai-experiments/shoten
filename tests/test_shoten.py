@@ -55,6 +55,12 @@ def test_filters():
     myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
     myvocab = sources_filter(myvocab, {'Source1'})
     assert len(myvocab) == 1
+    myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
+    myvocab = wordlist_filter(myvocab, ['Tests', 'Other'], keep_words=False)
+    assert len(myvocab) == 1
+    myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
+    myvocab = wordlist_filter(myvocab, ['Tests', 'Other'], keep_words=True)
+    assert len(myvocab) == 2
     
 
 

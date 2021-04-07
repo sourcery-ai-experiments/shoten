@@ -58,7 +58,9 @@ Filters
 - ``oldest_filter(myvocab, threshold=50)``: discard the oldest words (threshold in percent)
 - ``freshness_filter(myvocab, percentage=10)``: keep the X% freshest words
 - ``ngram_filter(myvocab, threshold=90, verbose=False)``: retains X% words based on character n-gram frequencies; runs out of memory if the vocabulary is too large (8 GB RAM recommended)
-- ``source filter(myvocab, threshold=2)``: remove words which are only present in less than x sources
+- ``sources_freqfilter(myvocab, threshold=2)``: remove words which are only present in less than x sources
+- ``sources_filter(myvocab, myset)``: only keep the words for which the source contains a string listed in the input set
+- ``wordlist_filter(myvocab, mylist, keep_words=False)``: keep or discard words present in the input list
 
 
 Reduce vocabulary size with a filter:

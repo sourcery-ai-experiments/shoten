@@ -180,6 +180,22 @@ def sources_filter(myvocab, myset):
     return myvocab
 
 
+def wordlist_filter(myvocab, mylist, keep_words=False):
+    '''Keep or discard words present in the input list.'''
+    mylist = set(mylist)
+    intersection = [w for w in myvocab if w in mylist]
+    if keep_words is False:
+        deletions = intersection
+    else:
+        intersection = set(intersection)
+        deletions = [w for w in myvocab if w not in intersection]
+    old_len = len(myvocab)
+    for word in deletions:
+        del myvocab[word]
+    print_changes('word list', old_len, len(myvocab))
+    return myvocab
+
+
 def headings_filter(myvocab):
     '''Filter words based on their presence in headings.'''
     deletions = list()
