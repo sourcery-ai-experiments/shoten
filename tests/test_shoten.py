@@ -2,6 +2,7 @@
 
 """Tests for `shoten` package."""
 
+import re
 import pytest
 import sys
 
@@ -29,11 +30,18 @@ def test_basics():
     myvocab2 = unpickle_wordinfo(filepath)
     assert len(myvocab2) == len(myvocab) and myvocab2['Tests']['time_series'].all() == myvocab['Tests']['time_series'].all()
     # generate from XML file
-    myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), ('de', 'en'))
+    myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), langcodes=('de', 'en'))
     assert 'Messengerdienst' in myvocab
-    # without language codes
-    myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), [])
+    # without language codes and with short time frame
+    myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), langcodes=[])
     assert 'Messengerdienst' in myvocab
+    # without language codes and with short time frame
+    myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), maxdiff=1)
+    assert 'Messengerdienst' not in myvocab
+    # with author filter
+    myregex = re.compile(r'\b(|afp|apa|dpa)\b', re.I)
+    myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), authorregex=myregex)
+    assert 'Messengerdienst' not in myvocab
 
 
 def test_cli():
