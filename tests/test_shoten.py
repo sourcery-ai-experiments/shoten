@@ -42,6 +42,8 @@ def test_basics():
     myregex = re.compile(r'\b(|afp|apa|dpa)\b', re.I)
     myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), authorregex=myregex)
     assert 'Messengerdienst' not in myvocab
+    # test frequency calculations
+    assert gen_freqlist('tests/testdir/') == dict()
 
 
 def test_cli():

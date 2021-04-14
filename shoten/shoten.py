@@ -1,16 +1,14 @@
 """Main module."""
 
 
-import _pickle as cpickle
 import pickle
 import gzip
 import re
 import string
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 # from concurrent.futures import as_completed, ThreadPoolExecutor
 from datetime import datetime
-from functools import partial
 from os import path, walk # cpu_count
 from pathlib import Path
 
@@ -18,6 +16,8 @@ import numpy as np
 
 from simplemma import load_data, lemmatize, simple_tokenizer, is_known
 from htmldate.utils import load_html #, sanitize
+
+import _pickle as cpickle
 
 from .filters import combined_filters
 
@@ -41,12 +41,18 @@ def calc_timediff(mydate):
     return diff.days
 
 
-def filter_lemmaform(token, lemmadata):
+def isalphatoken(token):
     # apply filter first
     if len(token) < 5 or len(token) > 50 or token.endswith('-') or token.startswith('@') or token.startswith('#'):
-        return None
+        return False
     token = token.rstrip(string.punctuation)
     if len(token) == 0 or token.isnumeric() or not digitsfilter.search(token):
+        return False
+    return True
+
+
+def filter_lemmaform(token, lemmadata):
+    if isalphatoken(token) is False:
         return None
     # potential new words only
     if is_known(token, lemmadata) is False and \
@@ -197,6 +203,95 @@ def apply_filters(myvocab, setting='normal'):
         setting = 'normal'
     for wordform in sorted(combined_filters(myvocab, setting)):
         print(wordform)
+
+
+def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
+    # init
+    myvocab, freqs, oldestday, newestday = dict(), dict(), 0, maxdiff
+    # load language data
+    lemmadata = load_data(*langcodes)
+    # read files
+    for filepath in find_files(mydir):
+        # read data
+        with open(filepath, 'rb') as filehandle:
+            mytree = load_html(filehandle.read())
+            # XML-TEI: compute difference in days
+            timediff = calc_timediff(mytree.xpath('//date')[0].text)
+            if timediff is None or not mindiff < timediff < maxdiff:
+                continue
+            if timediff > oldestday:
+                oldestday = timediff
+            if timediff < newestday:
+                newestday = timediff
+            # extract
+            for token in simple_tokenizer(' '.join(mytree.xpath('//text')[0].itertext())):
+                if isalphatoken(token) is True:
+                    if token not in myvocab:
+                        myvocab[token] = []
+                    myvocab[token].append(timediff)
+    # lemmatize
+    if len(langcodes) > 0:
+        deletions = []
+        for token in myvocab:
+            lemma = lemmatize(token, lemmadata, greedy=True, silent=False)
+            if lemma == token:
+                continue
+            # register lemma and add frequencies
+            if lemma not in myvocab:
+                myvocab[lemma] = []
+            myvocab[lemma] = myvocab[lemma] + myvocab[token]
+            deletions.append(token)
+        # delete
+        for item in deletions:
+            del myvocab[item]
+        # post-processing
+        myvocab = dehyphen_vocab(myvocab)
+    # determine bins
+    bins = [i for i in range(oldestday, newestday, -1) if oldestday - i >= 7 and i % 7 == 0]
+    if len(bins) == 0:
+        print('Not enough days to compute frequencies')
+        return freqs
+    timeseries = [0] * len(bins)
+    #print(oldestday, newestday)
+    # remove occurrences that are out of bounds: no complete week
+    for item in myvocab:
+        myvocab[item] = [d for d in myvocab[item] if not d < bins[-1] and not d > bins[0]]
+    # remove hapaxes
+    deletions = [w for w in myvocab if len(myvocab[w]) <= 1]
+    for item in deletions:
+        del myvocab[item]
+    # frequency computations
+    freqsum = sum([len(myvocab[l]) for l in myvocab])
+    for wordform in myvocab:
+        freqs[wordform] = dict()
+        # parts per million
+        freqs[wordform]['total'] = (len(myvocab[wordform]) / freqsum)*1000000
+        counter = 0
+        freqseries = [0] * len(bins)
+        mydays = Counter(myvocab[wordform])
+        for day in range(oldestday, newestday, -1):
+            if day in mydays:
+                counter += mydays[day]
+            if day % 7 == 0:
+                try:
+                    freqseries[bins.index(day)] = counter
+                    counter = 0
+                except ValueError:
+                    pass
+        freqs[wordform]['series_abs'] = freqseries
+        for i in range(len(bins)):
+            timeseries[i] += freqs[wordform]['series_abs'][i]
+    for wordform in freqs:
+        freqs[wordform]['series_rel'] = [0] * len(bins)
+        for i in range(len(bins)):
+            try:
+                freqs[wordform]['series_rel'][i] = (freqs[wordform]['series_abs'][i] / timeseries[i])*1000000
+            except ZeroDivisionError:
+                pass
+    for wordform in freqs:
+        freqs[wordform]['stddev'] = np.std(freqs[wordform]['series_rel'])
+        freqs[wordform]['mean'] = np.mean(freqs[wordform]['series_rel'])
+    return freqs
 
 
 if __name__ == '__main__':
