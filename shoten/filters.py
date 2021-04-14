@@ -1,6 +1,8 @@
 """Filters meant to reduce noise."""
 
 
+import csv
+
 from math import ceil
 
 import numpy as np
@@ -17,16 +19,26 @@ def print_changes(phase, old_len, new_len):
     print(phase, 'removed', old_len - new_len, '%.1f' % coeff, '%')
 
 
+def store_results(myvocab, filename):
+    with open(filename, 'w') as outfile:
+        tsvwriter = csv.writer(outfile, delimiter='\t')
+        tsvwriter.writerow(['word', 'sources', 'time series'])
+        # for token in sorted(myvocab, key=locale.strxfrm):
+        for entry in myvocab:
+            tsvwriter.writerow([entry, ','.join(myvocab[entry]['sources']), str(myvocab[entry]['time_series'].tolist())])
+
+
 def combined_filters(myvocab, setting):
     '''Apply a combination of filters based on the chosen setting.'''
     if setting == 'loose':
         return freshness_filter(frequency_filter(hapax_filter(myvocab)))
-    elif setting == 'normal':
+    if setting == 'normal':
         return freshness_filter(oldest_filter(frequency_filter(hapax_filter(myvocab))))
-    elif setting == 'strict':
+    if setting == 'strict':
         return freshness_filter(oldest_filter(
                frequency_filter(shortness_filter(ngram_filter(hapax_filter(myvocab))), min_perc=10)
                ))
+    return myvocab
 
 
 def hapax_filter(myvocab, freqcount=2):
@@ -165,7 +177,7 @@ def sources_filter(myvocab, myset):
                 for string in myset:
                     if string in source:
                         deletion_flag = False
-                        break 
+                        break
                 else:
                     continue
                 # inner loop was broken, break the outer

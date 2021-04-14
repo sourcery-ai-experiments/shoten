@@ -1,8 +1,9 @@
 """Main module."""
 
 
-import pickle
+import csv
 import gzip
+import pickle
 import re
 import string
 
@@ -292,6 +293,16 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
         freqs[wordform]['stddev'] = np.std(freqs[wordform]['series_rel'])
         freqs[wordform]['mean'] = np.mean(freqs[wordform]['series_rel'])
     return freqs
+
+
+def store_freqlist(freqs, filename):
+    with open(filename, 'w') as outfile:
+        tsvwriter = csv.writer(outfile, delimiter='\t')
+        tsvwriter.writerow(['word', 'total', 'mean', 'stddev', 'relfreqs'])
+        for entry in sorted(freqs):
+            tsvwriter.writerow([entry, freqs[entry]['total'], freqs[entry]['mean'], freqs[entry]['stddev'], freqs[entry]['series_rel']])
+
+
 
 
 if __name__ == '__main__':
