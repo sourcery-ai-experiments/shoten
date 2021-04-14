@@ -232,21 +232,17 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
                     myvocab[token].append(timediff)
     # lemmatize
     if len(langcodes) > 0:
-        deletions = []
+        newvocab = dict()
         for token in myvocab:
-            lemma = lemmatize(token, lemmadata, greedy=True, silent=False)
-            if lemma == token:
-                continue
-            # register lemma and add frequencies
-            if lemma not in myvocab:
-                myvocab[lemma] = []
-            myvocab[lemma] = myvocab[lemma] + myvocab[token]
-            deletions.append(token)
-        # delete
-        for item in deletions:
-            del myvocab[item]
+            lemma = lemmatize(token, lemmadata, greedy=True, silent=True)
+            if isalphatoken(lemma) is True:
+                # register lemma and add frequencies
+                if lemma not in newvocab:
+                    newvocab[lemma] = []
+                newvocab[lemma] = newvocab[lemma] + myvocab[token]
         # post-processing
-        myvocab = dehyphen_vocab(myvocab)
+        #myvocab = dehyphen_vocab(newvocab)
+        myvocab = newvocab
     # determine bins
     bins = [i for i in range(oldestday, newestday, -1) if oldestday - i >= 7 and i % 7 == 0]
     if len(bins) == 0:
@@ -266,7 +262,7 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
     for wordform in myvocab:
         freqs[wordform] = dict()
         # parts per million
-        freqs[wordform]['total'] = (len(myvocab[wordform]) / freqsum)*1000000
+        freqs[wordform]['total'] = '{0:.3f}'.format((len(myvocab[wordform]) / freqsum)*1000000)
         counter = 0
         freqseries = [0] * len(bins)
         mydays = Counter(myvocab[wordform])
@@ -282,6 +278,7 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
         freqs[wordform]['series_abs'] = freqseries
         for i in range(len(bins)):
             timeseries[i] += freqs[wordform]['series_abs'][i]
+    # sum up frequencies
     for wordform in freqs:
         freqs[wordform]['series_rel'] = [0] * len(bins)
         for i in range(len(bins)):
@@ -289,9 +286,12 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
                 freqs[wordform]['series_rel'][i] = (freqs[wordform]['series_abs'][i] / timeseries[i])*1000000
             except ZeroDivisionError:
                 pass
-    for wordform in freqs:
-        freqs[wordform]['stddev'] = np.std(freqs[wordform]['series_rel'])
-        freqs[wordform]['mean'] = np.mean(freqs[wordform]['series_rel'])
+        # take non-zero values and perform calculations
+        series = [f for f in freqs[wordform]['series_rel'] if f != 0]
+        freqs[wordform]['stddev'] = '{0:.3f}'.format(np.std(series))
+        freqs[wordform]['mean'] = '{0:.3f}'.format(np.mean(series))
+        # spare memory
+        #freqs[wordform]['series_abs'], freqs[wordform]['series_rel'] = [], []
     return freqs
 
 
@@ -300,9 +300,8 @@ def store_freqlist(freqs, filename):
         tsvwriter = csv.writer(outfile, delimiter='\t')
         tsvwriter.writerow(['word', 'total', 'mean', 'stddev', 'relfreqs'])
         for entry in sorted(freqs):
-            tsvwriter.writerow([entry, freqs[entry]['total'], freqs[entry]['mean'], freqs[entry]['stddev'], freqs[entry]['series_rel']])
-
-
+            if float(freqs[entry]['total']) > 1:
+                tsvwriter.writerow([entry, freqs[entry]['total'], freqs[entry]['mean'], freqs[entry]['stddev'], freqs[entry]['series_rel']])
 
 
 if __name__ == '__main__':
