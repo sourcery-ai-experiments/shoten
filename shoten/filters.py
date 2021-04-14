@@ -3,12 +3,14 @@
 
 import csv
 
+from collections import Counter
 from math import ceil
 
 import numpy as np
 
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
 
 MAX_NGRAM_VOC = 15000
 
@@ -218,6 +220,51 @@ def headings_filter(myvocab):
     for item in deletions:
         del myvocab[item]
     print_changes('headings', old_len, len(myvocab))
+    return myvocab
+
+
+def read_freqlist(filename):
+    freqlimits = dict()
+    with open(filename, 'r') as csvfile:
+        tsvreader = csv.reader(csvfile, delimiter='\t')
+        # skip headline
+        next(tsvreader)
+        for row in tsvreader:
+            # unpack
+            word, mean, stddev = row[0], float(row[2]), float(row[3])
+            # limit
+            freqlimits[word] = float('{0:.3f}'.format(mean + 2*stddev))
+    return freqlimits
+
+
+def longtermfilter(myvocab, filename, mustexist=False, startday=1):
+    freqlimits = read_freqlist(filename)
+    oldestday = startday + 6
+    allfreqs = 0
+    for word in myvocab:
+        occurrences = 0
+        mydays = Counter(myvocab[word]['time_series'])
+        for day in range(oldestday, startday, -1):
+            if day in mydays:
+                occurrences += mydays[day]
+        myvocab[word]['absfreq'] = occurrences
+        allfreqs += occurrences
+    # relative frequency
+    deletions = list()
+    intersection = [w for w in myvocab if w in freqlimits]
+    for word in intersection:
+        relfreq = (myvocab[word]['absfreq'] / allfreqs)*1000000
+        # threshold defined by long-term frequencies
+        if relfreq < freqlimits[word]:
+            #print(word, relfreq, freqlimits[word])
+            deletions.append(word)
+    if mustexist is True:
+        exclusion = [w for w in myvocab if w not in freqlimits]
+        deletions = deletions + exclusion
+    old_len = len(myvocab)
+    for item in deletions:
+        del myvocab[item]
+    print_changes('long-term frequency threshold', old_len, len(myvocab))
     return myvocab
 
 
