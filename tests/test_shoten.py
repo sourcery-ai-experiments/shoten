@@ -44,6 +44,7 @@ def test_basics():
     assert 'Messengerdienst' not in myvocab
     # test frequency calculations
     assert gen_freqlist('tests/testdir/') == dict()
+    assert gen_freqlist('tests/testdir/', langcodes=['en']) == dict()
 
 
 def test_cli():

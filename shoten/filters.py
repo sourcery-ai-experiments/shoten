@@ -2,6 +2,8 @@
 
 
 import csv
+import re
+import string
 
 from collections import Counter
 from math import ceil
@@ -13,6 +15,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 
 MAX_NGRAM_VOC = 15000
+
+RE_FILTER = re.compile(r'[^\W\d\.-]')
+
 
 
 def print_changes(phase, old_len, new_len):
@@ -41,6 +46,16 @@ def combined_filters(myvocab, setting):
                frequency_filter(shortness_filter(ngram_filter(hapax_filter(myvocab))), min_perc=10)
                ))
     return myvocab
+
+
+def is_relevant_input(token):
+    # apply filter first
+    if len(token) < 5 or len(token) > 50 or token.endswith('-') or token.startswith('@') or token.startswith('#'):
+        return False
+    token = token.rstrip(string.punctuation)
+    if len(token) == 0 or token.isnumeric() or not RE_FILTER.search(token):
+        return False
+    return True
 
 
 def hapax_filter(myvocab, freqcount=2):
@@ -176,8 +191,8 @@ def sources_filter(myvocab, myset):
         if myvocab[word]['sources'] != []:
             for source in myvocab[word]['sources']:
                 # for / else construct
-                for string in myset:
-                    if string in source:
+                for mystring in myset:
+                    if mystring in source:
                         deletion_flag = False
                         break
                 else:

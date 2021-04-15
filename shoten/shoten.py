@@ -4,8 +4,6 @@
 import csv
 import gzip
 import pickle
-import re
-import string
 
 from collections import Counter, defaultdict
 # from concurrent.futures import as_completed, ThreadPoolExecutor
@@ -20,11 +18,11 @@ from htmldate.utils import load_html #, sanitize
 
 import _pickle as cpickle
 
-from .filters import combined_filters
+from .filters import combined_filters, is_relevant_input
 
 
 today = datetime.today()
-digitsfilter = re.compile(r'[^\W\d\.-]')
+
 
 
 def find_files(dirname):
@@ -42,18 +40,8 @@ def calc_timediff(mydate):
     return diff.days
 
 
-def isalphatoken(token):
-    # apply filter first
-    if len(token) < 5 or len(token) > 50 or token.endswith('-') or token.startswith('@') or token.startswith('#'):
-        return False
-    token = token.rstrip(string.punctuation)
-    if len(token) == 0 or token.isnumeric() or not digitsfilter.search(token):
-        return False
-    return True
-
-
 def filter_lemmaform(token, lemmadata):
-    if isalphatoken(token) is False:
+    if is_relevant_input(token) is False:
         return None
     # potential new words only
     if is_known(token, lemmadata) is False and \
@@ -226,23 +214,25 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
                 newestday = timediff
             # extract
             for token in simple_tokenizer(' '.join(mytree.xpath('//text')[0].itertext())):
-                if isalphatoken(token) is True:
+                if is_relevant_input(token) is True:
                     if token not in myvocab:
-                        myvocab[token] = []
-                    myvocab[token].append(timediff)
+                        myvocab[token] = dict()
+                        myvocab[token]['time_series'] = []
+                    myvocab[token]['time_series'].append(timediff)
     # lemmatize
     if len(langcodes) > 0:
         newvocab = dict()
         for token in myvocab:
             lemma = lemmatize(token, lemmadata, greedy=True, silent=True)
-            if isalphatoken(lemma) is True:
+            if is_relevant_input(lemma) is True:
                 # register lemma and add frequencies
                 if lemma not in newvocab:
-                    newvocab[lemma] = []
-                newvocab[lemma] = newvocab[lemma] + myvocab[token]
+                    newvocab[lemma] = dict()
+                    newvocab[lemma]['time_series'] = []
+                newvocab[lemma]['time_series'] = newvocab[lemma]['time_series'] + myvocab[token]['time_series']
         # post-processing
-        #myvocab = dehyphen_vocab(newvocab)
-        myvocab = newvocab
+        myvocab = dehyphen_vocab(newvocab)
+        #myvocab = newvocab
     # determine bins
     bins = [i for i in range(oldestday, newestday, -1) if oldestday - i >= 7 and i % 7 == 0]
     if len(bins) == 0:
@@ -252,20 +242,19 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
     #print(oldestday, newestday)
     # remove occurrences that are out of bounds: no complete week
     for item in myvocab:
-        myvocab[item] = [d for d in myvocab[item] if not d < bins[-1] and not d > bins[0]]
+        myvocab[item]['time_series'] = [d for d in myvocab[item]['time_series'] if not d < bins[-1] and not d > bins[0]]
     # remove hapaxes
-    deletions = [w for w in myvocab if len(myvocab[w]) <= 1]
+    deletions = [w for w in myvocab if len(myvocab[w]['time_series']) <= 1]
     for item in deletions:
         del myvocab[item]
     # frequency computations
-    freqsum = sum([len(myvocab[l]) for l in myvocab])
+    freqsum = sum([len(myvocab[l]['time_series']) for l in myvocab])
     for wordform in myvocab:
-        freqs[wordform] = dict()
         # parts per million
-        freqs[wordform]['total'] = '{0:.3f}'.format((len(myvocab[wordform]) / freqsum)*1000000)
+        myvocab[wordform]['total'] = float('{0:.3f}'.format((len(myvocab[wordform]['time_series']) / freqsum)*1000000))
         counter = 0
         freqseries = [0] * len(bins)
-        mydays = Counter(myvocab[wordform])
+        mydays = Counter(myvocab[wordform]['time_series'])
         for day in range(oldestday, newestday, -1):
             if day in mydays:
                 counter += mydays[day]
@@ -275,24 +264,26 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
                     counter = 0
                 except ValueError:
                     pass
-        freqs[wordform]['series_abs'] = freqseries
+        myvocab[wordform]['series_abs'] = freqseries
+        # spare memory
+        myvocab[wordform]['time_series'] = []
         for i in range(len(bins)):
-            timeseries[i] += freqs[wordform]['series_abs'][i]
+            timeseries[i] += myvocab[wordform]['series_abs'][i]
     # sum up frequencies
-    for wordform in freqs:
-        freqs[wordform]['series_rel'] = [0] * len(bins)
+    for wordform in myvocab:
+        myvocab[wordform]['series_rel'] = [0] * len(bins)
         for i in range(len(bins)):
             try:
-                freqs[wordform]['series_rel'][i] = (freqs[wordform]['series_abs'][i] / timeseries[i])*1000000
+                myvocab[wordform]['series_rel'][i] = (myvocab[wordform]['series_abs'][i] / timeseries[i])*1000000
             except ZeroDivisionError:
                 pass
         # take non-zero values and perform calculations
-        series = [f for f in freqs[wordform]['series_rel'] if f != 0]
-        freqs[wordform]['stddev'] = '{0:.3f}'.format(np.std(series))
-        freqs[wordform]['mean'] = '{0:.3f}'.format(np.mean(series))
+        series = [f for f in myvocab[wordform]['series_rel'] if f != 0]
+        myvocab[wordform]['stddev'] = float('{0:.3f}'.format(np.std(series)))
+        myvocab[wordform]['mean'] = float('{0:.3f}'.format(np.mean(series)))
         # spare memory
-        #freqs[wordform]['series_abs'], freqs[wordform]['series_rel'] = [], []
-    return freqs
+        myvocab[wordform]['series_abs'] = []
+    return myvocab
 
 
 def store_freqlist(freqs, filename):
@@ -300,7 +291,10 @@ def store_freqlist(freqs, filename):
         tsvwriter = csv.writer(outfile, delimiter='\t')
         tsvwriter.writerow(['word', 'total', 'mean', 'stddev', 'relfreqs'])
         for entry in sorted(freqs):
-            if float(freqs[entry]['total']) > 1:
+            # only store statistically significant entries
+            if freqs[entry]['stddev'] == 0:
+                continue
+            if freqs[entry]['total'] > 1 or (freqs[entry]['total'] > 0.2 and freqs[entry]['stddev'] < freqs[entry]['mean']/2):
                 tsvwriter.writerow([entry, freqs[entry]['total'], freqs[entry]['mean'], freqs[entry]['stddev'], freqs[entry]['series_rel']])
 
 
