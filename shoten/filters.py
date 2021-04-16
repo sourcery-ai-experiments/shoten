@@ -171,16 +171,33 @@ def freshness_filter(myvocab, percentage=10):
     return myvocab
 
 
-def sources_freqfilter(myvocab, threshold=2):
+def sources_freqfilter(myvocab, threshold=2, balanced=True):
     '''Filter words based on source diversity.'''
     deletions = list()
+    i, j = 0, 0
     for word in myvocab:
-        if myvocab[word]['sources'] != [] and len(set(myvocab[word]['sources'])) < threshold:
-            deletions.append(word)
+        if myvocab[word]['sources'] != []:
+            sources = Counter(myvocab[word]['sources'])
+            # absolute number
+            if len(sources) < threshold:
+                deletions.append(word)
+                i += 1
+                continue
+            # distribution of sources
+            if balanced is True:
+                values = [t[1] for t in sources.most_common()]
+                # first value too present compared to the rest
+                if values[0] >= 4*values[1]: # (sum(values)/len(values)):
+                    deletions.append(word)
+                    j += 1
+                    continue
+            # store counter
+            #myvocab[word]['sources'] = sources
     old_len = len(myvocab)
     for item in deletions:
         del myvocab[item]
-    print_changes('sources freq', old_len, len(myvocab))
+    print_changes('sources freq', old_len, old_len-i)
+    print_changes('sources balance', old_len, old_len-j)
     return myvocab
 
 
