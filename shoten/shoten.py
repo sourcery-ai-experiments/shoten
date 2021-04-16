@@ -40,19 +40,19 @@ def calc_timediff(mydate):
     return diff.days
 
 
-def filter_lemmaform(token, lemmadata):
+def filter_lemmaform(token, lemmadata, lemmafilter=True):
     if is_relevant_input(token) is False:
         return None
     # potential new words only
-    if is_known(token, lemmadata) is False and \
-    sum(map(str.isupper, token)) < 4 and sum(map(str.isdigit, token)) < 4:
-        try:
-            return lemmatize(token, lemmadata, greedy=True, silent=False)
-        except ValueError:
-            # and token[:-1] not in myvocab and token[:-1].lower() not in myvocab:
-            # token = token.lower()
-            return token
-    return None
+    if lemmafilter is True and is_known(token, lemmadata) is True:
+        return None
+    # lemmatize
+    try:
+        return lemmatize(token, lemmadata, greedy=True, silent=False)
+    except ValueError:
+        # and token[:-1] not in myvocab and token[:-1].lower() not in myvocab:
+        # token = token.lower()
+        return token
 
 
 def putinvocab(myvocab, wordform, timediff, source, inheadings=False):
@@ -94,7 +94,7 @@ def postprocessing(myvocab):
     return myvocab
 
 
-def read_file(filepath, lemmadata, maxdiff=1000, authorregex=None):
+def read_file(filepath, lemmadata, maxdiff=1000, authorregex=None, lemmafilter=False):
     # read data
     with open(filepath, 'rb') as filehandle:
         mytree = load_html(filehandle.read())
@@ -102,9 +102,13 @@ def read_file(filepath, lemmadata, maxdiff=1000, authorregex=None):
     # ...
     # XML-TEI: filter author
     if authorregex is not None:
-        author = mytree.xpath('//author')[0].text
-        if authorregex.search(author):
-            return
+        try:
+            author = mytree.xpath('//author')[0].text
+            if authorregex.search(author):
+                return
+        # no author string in the document, log?
+        except IndexError:
+            pass
     # XML-TEI: compute difference in days
     timediff = calc_timediff(mytree.xpath('//date')[0].text)
     if timediff is None or timediff >= maxdiff:
@@ -123,13 +127,13 @@ def read_file(filepath, lemmadata, maxdiff=1000, authorregex=None):
         inheadings = False
         if token in headwords:
             inheadings = True
-        result = filter_lemmaform(token, lemmadata)
+        result = filter_lemmaform(token, lemmadata, lemmafilter)
         if result is not None:
             # return tuple
             yield result, timediff, source, inheadings
 
 
-def gen_wordlist(mydir, langcodes=[], maxdiff=1000, authorregex=None):
+def gen_wordlist(mydir, langcodes=[], maxdiff=1000, authorregex=None, lemmafilter=False):
     # init
     myvocab = dict()
     # load language data
@@ -141,7 +145,7 @@ def gen_wordlist(mydir, langcodes=[], maxdiff=1000, authorregex=None):
     #        for token, timediff in future.result():
     #            myvocab[token] = np.append(myvocab[token], timediff)
     for filepath in find_files(mydir):
-        for token, timediff, source, inheadings in read_file(filepath, lemmadata, maxdiff, authorregex):
+        for token, timediff, source, inheadings in read_file(filepath, lemmadata, maxdiff, authorregex, lemmafilter):
             myvocab = putinvocab(myvocab, token, timediff, source, inheadings)
     # post-processing
     return postprocessing(myvocab)
