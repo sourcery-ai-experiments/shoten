@@ -50,10 +50,12 @@ def combined_filters(myvocab, setting):
 
 def is_relevant_input(token):
     # apply filter first
-    if len(token) < 5 or len(token) > 50 or token.endswith('-') or token.startswith('@') or token.startswith('#'):
+    if not 5 <= len(token) <= 50 or token.startswith('@') or token.startswith('#') or token.endswith('-'):
         return False
     token = token.rstrip(string.punctuation)
     if len(token) == 0 or token.isnumeric() or not RE_FILTER.search(token):
+        return False
+    if sum(map(str.isupper, token)) > 4 or sum(map(str.isdigit, token)) > 4:
         return False
     return True
 
