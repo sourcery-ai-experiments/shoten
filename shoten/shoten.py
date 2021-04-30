@@ -21,8 +21,7 @@ import _pickle as cpickle
 from .filters import combined_filters, is_relevant_input
 
 
-today = datetime.today()
-
+TODAY = datetime.today()
 
 
 def find_files(dirname):
@@ -36,7 +35,7 @@ def calc_timediff(mydate):
         thisday = datetime.strptime(mydate, '%Y-%m-%d')
     except (TypeError, ValueError):
         return None
-    diff = today - thisday
+    diff = TODAY - thisday
     return diff.days
 
 
@@ -290,7 +289,7 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
     return myvocab
 
 
-def store_freqlist(freqs, filename):
+def store_freqlist(freqs, filename, thres_a=1, thres_b=0.2):
     with open(filename, 'w') as outfile:
         tsvwriter = csv.writer(outfile, delimiter='\t')
         tsvwriter.writerow(['word', 'total', 'mean', 'stddev', 'relfreqs'])
@@ -298,8 +297,15 @@ def store_freqlist(freqs, filename):
             # only store statistically significant entries
             if freqs[entry]['stddev'] == 0:
                 continue
-            if freqs[entry]['total'] > 1 or (freqs[entry]['total'] > 0.2 and freqs[entry]['stddev'] < freqs[entry]['mean']/2):
-                tsvwriter.writerow([entry, freqs[entry]['total'], freqs[entry]['mean'], freqs[entry]['stddev'], freqs[entry]['series_rel']])
+            if freqs[entry]['mean'] > thres_a or \
+                (
+                    freqs[entry]['mean'] > thres_b and \
+                    freqs[entry]['stddev'] < freqs[entry]['mean']/2
+                ):
+                tsvwriter.writerow(
+                    [entry, freqs[entry]['total'], freqs[entry]['mean'],
+                     freqs[entry]['stddev'], freqs[entry]['series_rel']]
+                )
 
 
 if __name__ == '__main__':
