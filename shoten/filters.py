@@ -176,23 +176,21 @@ def sources_freqfilter(myvocab, threshold=2, balanced=True):
     deletions = list()
     i, j = 0, 0
     for word in myvocab:
-        if myvocab[word]['sources'] != []:
-            sources = Counter(myvocab[word]['sources'])
-            # absolute number
-            if len(sources) < threshold:
+        if len(myvocab[word]['sources']) == 0:
+            continue
+        # absolute number
+        if len(myvocab[word]['sources']) < threshold:
+            deletions.append(word)
+            i += 1
+            continue
+        # distribution of sources
+        if balanced is True:
+            values = [t[1] for t in myvocab[word]['sources'].most_common()]
+            # first value too present compared to the rest
+            if values[0] >= 4*values[1]: # (sum(values)/len(values)):
                 deletions.append(word)
-                i += 1
+                j += 1
                 continue
-            # distribution of sources
-            if balanced is True:
-                values = [t[1] for t in sources.most_common()]
-                # first value too present compared to the rest
-                if values[0] >= 4*values[1]: # (sum(values)/len(values)):
-                    deletions.append(word)
-                    j += 1
-                    continue
-            # store counter
-            #myvocab[word]['sources'] = sources
     old_len = len(myvocab)
     for item in deletions:
         del myvocab[item]
@@ -207,7 +205,7 @@ def sources_filter(myvocab, myset):
     deletions = list()
     for word in myvocab:
         deletion_flag = True
-        if myvocab[word]['sources'] != []:
+        if len(myvocab[word]['sources']) > 0:
             for source in myvocab[word]['sources']:
                 # for / else construct
                 for mystring in myset:

@@ -6,7 +6,6 @@ import gzip
 import pickle
 
 from collections import Counter, defaultdict
-# from concurrent.futures import as_completed, ThreadPoolExecutor
 from datetime import datetime
 from os import path, walk # cpu_count
 from pathlib import Path
@@ -53,27 +52,23 @@ def filter_lemmaform(token, lemmadata, lemmafilter=True):
 
 def putinvocab(myvocab, wordform, timediff, source, inheadings=False):
     "Store the word form in the vocabulary or add a new occurrence to it."
-    # form and regex-based filter
-    if is_relevant_input(wordform) is False:
-        return myvocab
-    # store info
     if wordform not in myvocab:
-        myvocab[wordform] = dict(time_series=[], sources=[], headings=False)
+        myvocab[wordform] = dict(time_series=[], sources=Counter(), headings=False)
     myvocab[wordform]['time_series'].append(timediff)
     if source is not None and len(source) > 0:
-        myvocab[wordform]['sources'].append(source)
+        myvocab[wordform]['sources'].update([source])
     if inheadings is True:
         myvocab[wordform]['headings'] = True
     return myvocab
 
 
-def append_to_vocab(myvocab, first, second):
+def prune_vocab(myvocab, first, second):
     "Append characteristics of wordform to be deleted to an other one."
     if second not in myvocab:
-        myvocab[second] = dict(time_series=[], sources=[], headings=False)
+        myvocab[second] = dict(time_series=[], sources=Counter(), headings=False)
     myvocab[second]['time_series'] = myvocab[second]['time_series'] + myvocab[first]['time_series']
     try:
-        myvocab[second]['sources'] = myvocab[second]['sources'] + myvocab[first]['sources']
+        myvocab[second]['sources'] = sum((myvocab[second]['sources'], myvocab[first]['sources']), Counter())
         if myvocab[first]['headings'] is True:
             myvocab[second]['headings'] = True
     # additional info potentially not present
@@ -86,13 +81,13 @@ def dehyphen_vocab(vocab):
     "Remove hyphens in words if a variant without hyphens exists."
     deletions = []
     for wordform in [w for w in vocab if '-' in w]:
-        splitted = wordform.split('-')
+        splitted = wordform
         candidate = ''.join([t.lower() for t in splitted])
         if wordform[0].isupper():
             candidate = candidate.capitalize()
         # fusion occurrence lists and schedule for deletion
         if candidate in vocab:
-            vocab = append_to_vocab(vocab, wordform, candidate)
+            vocab = prune_vocab(vocab, wordform, candidate)
             deletions.append(wordform)
     for word in deletions:
         del vocab[word]
@@ -114,7 +109,7 @@ def refine_vocab(myvocab, lemmadata, lemmafilter=False, dehyphenation=True):
                 changes.append((token, lemma))
                 deletions.append(token)
         for token, lemma in changes:
-            myvocab = append_to_vocab(myvocab, token, lemma)
+            myvocab = prune_vocab(myvocab, token, lemma)
         for token in deletions:
             del myvocab[token]
     # dehyphen
@@ -136,36 +131,29 @@ def read_file(filepath, maxdiff=1000, authorregex=None):
     with open(filepath, 'rb') as filehandle:
         mytree = load_html(filehandle.read())
     # todo: XML-TEI + XML
-    # ...
-    # XML-TEI: filter author
-    if authorregex is not None:
-        try:
-            author = mytree.xpath('//author')[0].text
-            if authorregex.search(author):
-                return
-        # no author string in the document, log?
-        except IndexError:
-            pass
     # XML-TEI: compute difference in days
     timediff = calc_timediff(mytree.xpath('//date')[0].text)
     if timediff is None or timediff >= maxdiff:
         return
-    # process
-    source = mytree.xpath('//publisher')[0].text
+    # XML-TEI: filter author
+    if authorregex is not None:
+        try:
+            if authorregex.search(mytree.find('.//author').text):
+                return
+        # no author string in the document, log?
+        except AttributeError:
+            pass
+    # source
+    source = mytree.find('.//publisher')
     # headings
-    headwords = set()
-    for heading in mytree.xpath('//fw'):
-        if heading.text_content() is not None:
-            # print(heading.text_content())
-            for token in simple_tokenizer(heading.text_content()):
-                headwords.add(token)
+    bow = [' '.join(h.itertext()) for h in mytree.xpath('//fw')]
+    headwords = {t for t in simple_tokenizer(' '.join(bow)) if is_relevant_input(t)}
     # process
     for token in simple_tokenizer(' '.join(mytree.xpath('//text')[0].itertext())):
-        inheadings = False
-        if token in headwords:
-            inheadings = True
-        # return tuple
-        yield token, timediff, source, inheadings
+        # form and regex-based filter
+        if is_relevant_input(token) is True:
+            # return tuple
+            yield token, timediff, source, token in headwords
 
 
 def gen_wordlist(mydir, langcodes=[], maxdiff=1000, authorregex=None, lemmafilter=False):
@@ -176,11 +164,6 @@ def gen_wordlist(mydir, langcodes=[], maxdiff=1000, authorregex=None, lemmafilte
     # load language data
     lemmadata = load_data(*langcodes)
     # read files
-    #with ThreadPoolExecutor(max_workers=1) as executor:  # min(cpu_count()*2, 16)
-    #    futures = {executor.submit(read_file, f, 15): f for f in find_files(mydir)}
-    #    for future in as_completed(futures):
-    #        for token, timediff in future.result():
-    #            myvocab[token] = np.append(myvocab[token], timediff)
     for filepath in find_files(mydir):
         for token, timediff, source, inheadings in read_file(filepath, maxdiff, authorregex):
             myvocab = putinvocab(myvocab, token, timediff, source, inheadings)
@@ -210,6 +193,7 @@ def load_wordlist(myfile, langcodes=[], maxdiff=1000):
             timediff = calc_timediff(date)
             if timediff is None or timediff > maxdiff:
                 continue
+            # skipping this: if is_relevant_input(token) is True
             myvocab = putinvocab(myvocab, token, timediff, source)
     # post-processing
     myvocab = refine_vocab(myvocab, lemmadata)
