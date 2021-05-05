@@ -3,11 +3,13 @@
 """Tests for `shoten` package."""
 
 import re
-import pytest
 import sys
 
+from collections import Counter
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from shoten import *
 from shoten.cli import parse_args, process_args
@@ -23,7 +25,7 @@ def test_basics():
     # load words
     myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
     assert len(myvocab) == 3
-    assert myvocab['Other']['sources'] == ['Source1']
+    assert myvocab['Other']['sources'] == Counter({'Source1': 1})
     # pickling and unpickling
     filepath = str(Path(__file__).parent / 'test.pickle')
     pickle_wordinfo(myvocab, filepath)
@@ -43,8 +45,13 @@ def test_basics():
     myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), authorregex=myregex)
     assert 'Messengerdienst' not in myvocab
     # test frequency calculations
-    assert gen_freqlist('tests/testdir/') == dict()
-    assert gen_freqlist('tests/testdir/', langcodes=['en']) == dict()
+    assert gen_freqlist(str(Path(__file__).parent / 'testdir')) == dict()
+    assert gen_freqlist(str(Path(__file__).parent / 'testdir'), langcodes=['en']) == dict()
+    mydict = dict()
+    mydict['Test'] = {'total': 20, 'mean': 10, 'stddev': 0, 'series_rel': [10, 10]}
+    store_freqlist(mydict, '/tmp/freqfile.tsv')
+    mydict['Test2'] = {'total': 10, 'mean': 5, 'stddev': 4.082, 'series_rel': [10, 5, 0]}
+    store_freqlist(mydict, '/tmp/freqfile.tsv')
 
 
 def test_cli():
@@ -64,7 +71,7 @@ def test_filters():
     myvocab = shortness_filter(myvocab)
     assert len(myvocab) == 1
     myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
-    myvocab = sources_filter(myvocab, {'Source1'})
+    myvocab = sources_filter(myvocab, Counter(['Source1']))
     assert len(myvocab) == 1
     myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
     myvocab = wordlist_filter(myvocab, ['Tests', 'Other'], keep_words=False)
@@ -72,7 +79,6 @@ def test_filters():
     myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
     myvocab = wordlist_filter(myvocab, ['Tests', 'Other'], keep_words=True)
     assert len(myvocab) == 2
-    
 
 
 #def test_readme():
