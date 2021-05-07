@@ -12,6 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
+from courlan import extract_domain
 from simplemma import load_data, lemmatize, simple_tokenizer, is_known
 from htmldate.utils import load_html #, sanitize
 
@@ -143,8 +144,13 @@ def read_file(filepath, maxdiff=1000, authorregex=None):
         # no author string in the document, log?
         except AttributeError:
             pass
-    # source
-    source = mytree.find('.//publisher')
+    # source: extract domain from URL first
+    url_elem = mytree.find('.//ptr[@type="URL"]')
+    if url_elem is not None and url_elem.get('target') is not None:
+        source = extract_domain(url_elem.get('target'))
+    # use TEI publisher info
+    else:
+        source = mytree.find('.//publisher').text
     # headings
     bow = [' '.join(h.itertext()) for h in mytree.xpath('//fw')]
     headwords = {t for t in simple_tokenizer(' '.join(bow)) if is_relevant_input(t)}

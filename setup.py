@@ -14,7 +14,8 @@ requirements = [
                    'numpy',
                    'scikit-learn >= 0.20.4',
                    'simplemma >= 0.2.2',
-                   'htmldate >= 0.8.1'
+                   'htmldate >= 0.8.1',
+                   'courlan >= 0.3.1',
                ]
 
 setup_requirements = []
