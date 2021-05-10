@@ -303,7 +303,7 @@ def longtermfilter(myvocab, filename, mustexist=False, startday=1):
     for word in myvocab:
         occurrences = 0
         mydays = Counter(myvocab[word]['time_series'])
-        for day in range(oldestday, startday, -1):
+        for day in range(oldestday, startday-1, -1):
             if day in mydays:
                 occurrences += mydays[day]
         myvocab[word]['absfreq'] = occurrences

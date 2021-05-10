@@ -137,6 +137,7 @@ def read_file(filepath, maxdiff=1000, authorregex=None):
     if timediff is None or timediff >= maxdiff:
         return
     # XML-TEI: filter author
+    # todo: add authorship flag instead?
     if authorregex is not None:
         try:
             if authorregex.search(mytree.find('.//author').text):
@@ -255,7 +256,7 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
     # lemmatize and dehyphen
     myvocab = refine_vocab(myvocab, lemmadata)
     # determine bins
-    bins = [i for i in range(oldestday, newestday, -1) if oldestday - i >= 7 and i % 7 == 0]
+    bins = [i for i in range(oldestday, newestday-1, -1) if oldestday - i >= 7 and i % 7 == 0]
     if len(bins) == 0:
         print('Not enough days to compute frequencies')
         return freqs
