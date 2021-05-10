@@ -26,6 +26,14 @@ def print_changes(phase, old_len, new_len):
     print(phase, 'removed', old_len - new_len, '%.1f' % coeff, '%')
 
 
+def scoring_func(scores, value, newvocab):
+    for wordform in set(newvocab):
+        if wordform not in scores:
+            scores[wordform] = 0
+        scores[wordform] += value
+    return scores
+
+
 def store_results(myvocab, filename):
     with open(filename, 'w') as outfile:
         tsvwriter = csv.writer(outfile, delimiter='\t')
