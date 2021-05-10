@@ -13,6 +13,8 @@ import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from simplemma import is_known, lemmatize
+
 
 MAX_NGRAM_VOC = 15000
 
@@ -74,6 +76,23 @@ def hapax_filter(myvocab, freqcount=2):
     for token in [t for t in myvocab if np.unique(myvocab[t]['time_series']).shape[0] <= freqcount]:
         del myvocab[token]
     print_changes('sameness/hapax', old_len, len(myvocab))
+    return myvocab
+
+
+def recognized_by_simplemma(myvocab, lemmadata):
+    old_len = len(myvocab)
+    for token in [t for t in myvocab if is_known(t, lemmadata)]:
+        del myvocab[token]
+    print_changes('known by simplemma', old_len, len(myvocab))
+    deletions = list()
+    for word in myvocab:
+        try:
+            lemmatize(word, lemmadata, greedy=True, silent=False)
+        except ValueError:
+            deletions.append(word)
+    for token in deletions:
+        del myvocab[token]
+    print_changes('reduced by simplemma', old_len, len(myvocab))
     return myvocab
 
 
