@@ -5,6 +5,7 @@ import csv
 import gzip
 import pickle
 
+from array import array
 from collections import Counter, defaultdict
 from datetime import datetime
 from os import path, walk # cpu_count
@@ -54,7 +55,7 @@ def filter_lemmaform(token, lemmadata, lemmafilter=True):
 def putinvocab(myvocab, wordform, timediff, source, inheadings=False):
     "Store the word form in the vocabulary or add a new occurrence to it."
     if wordform not in myvocab:
-        myvocab[wordform] = dict(time_series=[], sources=Counter(), headings=False)
+        myvocab[wordform] = dict(time_series=array('H'), sources=Counter(), headings=False)
     myvocab[wordform]['time_series'].append(timediff)
     if source is not None and len(source) > 0:
         myvocab[wordform]['sources'].update([source])
@@ -66,7 +67,7 @@ def putinvocab(myvocab, wordform, timediff, source, inheadings=False):
 def prune_vocab(myvocab, first, second):
     "Append characteristics of wordform to be deleted to an other one."
     if second not in myvocab:
-        myvocab[second] = dict(time_series=[], sources=Counter(), headings=False)
+        myvocab[second] = dict(time_series=array('H'), sources=Counter(), headings=False)
     myvocab[second]['time_series'] = myvocab[second]['time_series'] + myvocab[first]['time_series']
     try:
         myvocab[second]['sources'] = sum((myvocab[second]['sources'], myvocab[first]['sources']), Counter())
@@ -119,7 +120,7 @@ def refine_vocab(myvocab, lemmadata, lemmafilter=False, dehyphenation=True):
     return myvocab
 
 
-def convert_to_array(myvocab):
+def convert_to_numpy(myvocab):
     "Convert time series to numpy array."
     for wordform in myvocab:
         myvocab[wordform]['time_series'] = np.array(myvocab[wordform]['time_series'])
@@ -176,7 +177,7 @@ def gen_wordlist(mydir, langcodes=[], maxdiff=1000, authorregex=None, lemmafilte
             myvocab = putinvocab(myvocab, token, timediff, source, inheadings)
     # post-processing
     myvocab = refine_vocab(myvocab, lemmadata, lemmafilter)
-    return convert_to_array(myvocab)
+    return convert_to_numpy(myvocab)
 
 
 def load_wordlist(myfile, langcodes=[], maxdiff=1000):
@@ -204,7 +205,7 @@ def load_wordlist(myfile, langcodes=[], maxdiff=1000):
             myvocab = putinvocab(myvocab, token, timediff, source)
     # post-processing
     myvocab = refine_vocab(myvocab, lemmadata)
-    return convert_to_array(myvocab)
+    return convert_to_numpy(myvocab)
 
 
 def pickle_wordinfo(mydict, filepath):
@@ -251,7 +252,7 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
             for token in simple_tokenizer(' '.join(mytree.xpath('//text')[0].itertext())):
                 if is_relevant_input(token) is True:
                     if token not in myvocab:
-                        myvocab[token] = dict(time_series=[])
+                        myvocab[token] = dict(time_series=array('H'))
                     myvocab[token]['time_series'].append(timediff)
     # lemmatize and dehyphen
     myvocab = refine_vocab(myvocab, lemmadata)
@@ -264,7 +265,7 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
     #print(oldestday, newestday)
     # remove occurrences that are out of bounds: no complete week
     for item in myvocab:
-        myvocab[item]['time_series'] = [d for d in myvocab[item]['time_series'] if not d < bins[-1] and not d > bins[0]]
+        myvocab[item]['time_series'] = array('H', [d for d in myvocab[item]['time_series'] if not d < bins[-1] and not d > bins[0]])
     # remove hapaxes
     deletions = [w for w in myvocab if len(myvocab[w]['time_series']) <= 1]
     for item in deletions:
@@ -288,7 +289,7 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
                     pass
         myvocab[wordform]['series_abs'] = freqseries
         # spare memory
-        myvocab[wordform]['time_series'] = []
+        myvocab[wordform]['time_series'] = array('H')
         for i in range(len(bins)):
             timeseries[i] += myvocab[wordform]['series_abs'][i]
     # sum up frequencies
