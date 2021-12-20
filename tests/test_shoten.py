@@ -4,6 +4,7 @@
 
 import re
 import sys
+import tempfile
 
 from collections import Counter
 from pathlib import Path
@@ -27,7 +28,7 @@ def test_basics():
     assert len(myvocab) == 3
     assert myvocab['Other']['sources'] == Counter({'Source1': 1})
     # pickling and unpickling
-    filepath = str(Path(__file__).parent / 'test.pickle')
+    os_handle, filepath = tempfile.mkstemp(suffix='.pickle', text=True)
     pickle_wordinfo(myvocab, filepath)
     myvocab2 = unpickle_wordinfo(filepath)
     assert len(myvocab2) == len(myvocab) and myvocab2['Tests']['time_series'].all() == myvocab['Tests']['time_series'].all()
@@ -50,10 +51,13 @@ def test_basics():
     mydict = {
         'Test': {'total': 20, 'mean': 10, 'stddev': 0, 'series_rel': [10, 10]}
     }
-
-    store_freqlist(mydict, '/tmp/freqfile.tsv')
+    # write to temp file
+    os_handle, temp_outputfile = tempfile.mkstemp(suffix='.tsv', text=True)
+    result = store_freqlist(mydict, temp_outputfile)
+    assert result is None
     mydict['Test2'] = {'total': 10, 'mean': 5, 'stddev': 4.082, 'series_rel': [10, 5, 0]}
-    store_freqlist(mydict, '/tmp/freqfile.tsv')
+    result = store_freqlist(mydict, temp_outputfile)
+    assert result is None
 
 
 def test_cli():

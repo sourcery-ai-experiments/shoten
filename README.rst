@@ -11,9 +11,9 @@ Shoten
     :target: https://pypi.python.org/pypi/shoten
     :alt: Python versions
 
-.. image:: https://img.shields.io/travis/adbar/shoten.svg
-    :target: https://travis-ci.org/adbar/shoten
-    :alt: Travis build status
+.. image:: https://img.shields.io/codecov/c/github/adbar/shoten.svg
+    :target: https://codecov.io/gh/adbar/shoten
+    :alt: Code Coverage
 
 
 Helper functions to find word trends (i.e. extract tokens, lemmatize and filter).
