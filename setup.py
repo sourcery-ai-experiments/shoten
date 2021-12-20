@@ -12,20 +12,20 @@ with open('README.rst') as readme_file:
 
 requirements = [
                    'numpy',
-                   'scikit-learn >= 0.20.4',
-                   'simplemma >= 0.2.2',
-                   'htmldate >= 0.8.1',
-                   'courlan >= 0.3.1',
+                   'scikit-learn >= 1.0.1',
+                   'simplemma >= 0.5.0',
+                   'htmldate >= 1.0.0',
+                   'courlan >= 0.6.0',
                ]
 
 setup_requirements = []
 
-test_requirements = ['pytest>=3', 'pytest-cov', 'tox']
+test_requirements = ['pytest>=3', 'pytest-cov']
 
 setup(
     author="Adrien Barbaresi",
     author_email='barbaresi@bbaw.de',
-    python_requires='>=3.4',
+    python_requires='>=3.6',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
@@ -35,12 +35,11 @@ setup(
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
         #'Natural Language :: English',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
         'Topic :: Scientific/Engineering :: Information Analysis',
         'Topic :: Text Processing :: Linguistic',
     ],
