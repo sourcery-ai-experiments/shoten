@@ -1,0 +1,50 @@
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader>
+    <fileDesc>
+      <titleStmt>
+        <title type="main">Binnen 72 Stunden: 25 Millionen neue Nutzer für Telegram</title>
+        <author>APA News</author>
+      </titleStmt>
+      <publicationStmt>
+        <p/>
+      </publicationStmt>
+      <notesStmt>
+        <note type="fingerprint">OfwMSVsRlj3rbchwrU+oU4FKvhQ=</note>
+      </notesStmt>
+      <sourceDesc>
+        <bibl>Binnen 72 Stunden: 25 Millionen neue Nutzer für Telegram. HORIZONT, 2021-01-13</bibl>
+        <bibl type="sigle">HORIZONT, 2021-01-13</bibl>
+        <biblFull>
+          <titleStmt>
+            <title type="main">Binnen 72 Stunden: 25 Millionen neue Nutzer für Telegram</title>
+          </titleStmt>
+          <publicationStmt>
+            <publisher>horizont.at</publisher>
+            <date>2021-01-13</date>
+          </publicationStmt>
+        </biblFull>
+      </sourceDesc>
+    </fileDesc>
+    <profileDesc>
+      <abstract>
+        <p>Telegram.</p>
+      </abstract>
+    </profileDesc>
+    <encodingDesc>
+      <appInfo>
+        <application version="0.7.0" ident="Trafilatura">
+          <label>Trafilatura</label>
+          <ptr target="https://github.com/adbar/trafilatura"/>
+        </application>
+      </appInfo>
+    </encodingDesc>
+  </teiHeader>
+  <text>
+    <body>
+      <div type="entry">
+        <p>Telegram.</p>
+      </div>
+      <div type="comments"/>
+    </body>
+  </text>
+</TEI>

@@ -38,6 +38,8 @@ def test_basics():
     myvocab2 = unpickle_wordinfo(filepath)
     assert len(myvocab2) == len(myvocab) and myvocab2['Tests']['time_series'].all() == myvocab['Tests']['time_series'].all()
     # generate from XML file
+    myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir' / 'test2'), langcodes=('de'))
+    assert len(myvocab) == 1 and 'Telegram' in myvocab
     myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), langcodes=('de', 'en'))
     assert 'Messengerdienst' in myvocab
     # without language codes and with short time frame
@@ -68,9 +70,16 @@ def test_basics():
 def test_internals():
     """Test internal functions."""
     lemmadata = load_data('de')
+
     # filter known lemmata
     assert filter_lemmaform('Berge', lemmadata, lemmafilter=True) is None
     assert filter_lemmaform('Berge', lemmadata, lemmafilter=False) == 'Berg'
+
+    # store in vocabulary
+    myvocab = {}
+    myvocab = putinvocab(myvocab, 'Berge', 5, 'Source_0', inheadings=True)
+    assert 'Berge' in myvocab and myvocab['Berge']['time_series'] == array('H', [5]) and myvocab['Berge']['headings'] is True
+
     # de-hyphening
     myvocab = {
         'de-hyphening': {'time_series': array('H', [1, 2, 3]), 'sources': Counter(['source1']), 'headings': True},
@@ -83,12 +92,20 @@ def test_internals():
     assert newvocab != myvocab
     assert len(newvocab['dehyphening']['time_series']) == 5
     assert newvocab['dehyphening']['headings'] is True
+
     # refine vocab
     myvocab['Berge'] = {'time_series': array('H', [5]), 'sources': Counter(['source3']), 'headings': False}
     newvocab = refine_vocab(deepcopy(myvocab), lemmadata, lemmafilter=False, dehyphenation=False)
     assert 'Berg' in newvocab and 'de-hyphening' in newvocab
     newvocab = refine_vocab(deepcopy(myvocab), lemmadata, lemmafilter=True, dehyphenation=True)
     assert 'Berge' not in newvocab and 'Berg' not in newvocab and 'de-hyphening' not in newvocab
+
+    # filters
+    newvocab = convert_to_numpy(newvocab)
+    apply_filters(deepcopy(newvocab))
+    apply_filters(newvocab, setting='loose')
+    with pytest.raises(ZeroDivisionError):
+        apply_filters(newvocab, setting='strict')
 
 
 def test_cli():
