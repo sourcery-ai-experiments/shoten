@@ -67,6 +67,11 @@ def test_cli():
     with patch.object(sys, 'argv', testargs):
         args = parse_args(testargs)
     process_args(args)
+    myfile = str(Path(__file__).parent / 'testdir' / 'wordlist.tsv')
+    testargs = ['', '--read-file', myfile, '-l', 'de', '--verbose']
+    with patch.object(sys, 'argv', testargs):
+        args = parse_args(testargs)
+    process_args(args)
 
 
 def test_filters():
