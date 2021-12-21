@@ -83,8 +83,7 @@ def dehyphen_vocab(vocab):
     "Remove hyphens in words if a variant without hyphens exists."
     deletions = []
     for wordform in [w for w in vocab if '-' in w]:
-        splitted = wordform
-        candidate = ''.join([t.lower() for t in splitted])
+        candidate = ''.join([c.lower() for c in wordform if c != '-'])
         if wordform[0].isupper():
             candidate = candidate.capitalize()
         # fusion occurrence lists and schedule for deletion
