@@ -228,12 +228,34 @@ def apply_filters(myvocab, setting='normal'):
         print(wordform)
 
 
+def calculate_bins(oldestday, newestday, interval=7):
+    "Calculate time frame bins to fit the data (usually weeks)."
+    return [d for d in range(oldestday, newestday - 1, -1) if oldestday - d >= 7 and d % interval == 0]
+
+
+def refine_frequencies(vocab, bins):
+    "Adjust the frequencies to a time frame and remove superfluous words."
+    deletions = []
+    # remove occurrences that are out of bounds: no complete week
+    for word in vocab:
+        new_series = array('H', [d for d in vocab[word]['time_series'] if not d < bins[-1] and not d > bins[0]])
+        if len(new_series) <= 1:
+            deletions.append(word)
+        else:
+            vocab[word]['time_series'] = new_series
+    # remove words with too little data
+    for word in deletions:
+        del vocab[word]
+    return vocab
+
+
 def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
     "Compute long-term frequency info out of a directory containing text files."
     # init
     myvocab, freqs, oldestday, newestday = dict(), dict(), 0, maxdiff
     # load language data
     lemmadata = load_data(*langcodes)
+
     # read files
     for filepath in find_files(mydir):
         # read data
@@ -253,22 +275,20 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
                     if token not in myvocab:
                         myvocab[token] = dict(time_series=array('H'))
                     myvocab[token]['time_series'].append(timediff)
+
     # lemmatize and dehyphen
     myvocab = refine_vocab(myvocab, lemmadata)
     # determine bins
-    bins = [i for i in range(oldestday, newestday-1, -1) if oldestday - i >= 7 and i % 7 == 0]
+    bins = calculate_bins(oldestday, newestday)
     if not bins:
         print('Not enough days to compute frequencies')
         return freqs
     timeseries = [0] * len(bins)
     #print(oldestday, newestday)
-    # remove occurrences that are out of bounds: no complete week
-    for item in myvocab:
-        myvocab[item]['time_series'] = array('H', [d for d in myvocab[item]['time_series'] if not d < bins[-1] and not d > bins[0]])
-    # remove hapaxes
-    deletions = [w for w in myvocab if len(myvocab[w]['time_series']) <= 1]
-    for item in deletions:
-        del myvocab[item]
+
+    # clean and refine the data
+    myvocab = refine_frequencies(myvocab, bins)
+
     # frequency computations
     freqsum = sum(len(myvocab[l]['time_series']) for l in myvocab)
     for wordform in myvocab:
@@ -291,6 +311,7 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
         myvocab[wordform]['time_series'] = array('H')
         for i in range(len(bins)):
             timeseries[i] += myvocab[wordform]['series_abs'][i]
+
     # sum up frequencies
     for wordform in myvocab:
         myvocab[wordform]['series_rel'] = [0] * len(bins)
@@ -306,6 +327,7 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
         myvocab[wordform]['mean'] = float('{0:.3f}'.format(np.mean(series)))
         # spare memory
         myvocab[wordform]['series_abs'] = []
+
     return myvocab
 
 

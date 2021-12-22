@@ -100,12 +100,24 @@ def test_internals():
     newvocab = refine_vocab(deepcopy(myvocab), lemmadata, lemmafilter=True, dehyphenation=True)
     assert 'Berge' not in newvocab and 'Berg' not in newvocab and 'de-hyphening' not in newvocab
 
-    # filters
+    # filter levels
     newvocab = convert_to_numpy(newvocab)
     apply_filters(deepcopy(newvocab))
     apply_filters(newvocab, setting='loose')
     with pytest.raises(ZeroDivisionError):
         apply_filters(newvocab, setting='strict')
+
+    # frequencies
+    oldestday, newestday = 21, 1
+    myvocab = {
+        'Berg': {'time_series': array('H', [newestday, 10, 10, oldestday])},
+        'Tal': {'time_series': array('H', [newestday, oldestday])},
+        'Zebra': {'time_series': array('H', [10])}
+    }
+    bins = calculate_bins(oldestday, newestday)
+    assert bins == [14, 7]
+    myvocab = refine_frequencies(myvocab, bins)
+    assert 'Berg' in myvocab and 'Tal' not in myvocab and 'Zebra' not in myvocab
 
 
 def test_cli():
