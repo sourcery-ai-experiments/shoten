@@ -111,6 +111,7 @@ def test_internals():
     oldestday, newestday = 21, 1
     myvocab = {
         'Berg': {'time_series': array('H', [newestday, 10, 10, oldestday])},
+        'Meer': {'time_series': array('H', [newestday, 8, 9, 11, oldestday])},
         'Tal': {'time_series': array('H', [newestday, oldestday])},
         'Zebra': {'time_series': array('H', [10])}
     }
@@ -118,6 +119,15 @@ def test_internals():
     assert bins == [14, 7]
     myvocab = refine_frequencies(myvocab, bins)
     assert 'Berg' in myvocab and 'Tal' not in myvocab and 'Zebra' not in myvocab
+
+    # freq calculations
+    myvocab, timeseries = compute_frequencies(myvocab, bins, oldestday, newestday)
+    assert myvocab['Berg']['total'] == 400000.0 and myvocab['Berg']['series_abs'] == [0, 2]
+    assert myvocab['Meer']['total'] == 600000.0 and myvocab['Meer']['series_abs'] == [0, 3]
+    assert timeseries == [0, 5]
+    myvocab = combine_frequencies(myvocab, bins, timeseries)
+    assert myvocab['Berg']['series_rel'] == [0, 400000.0]
+    assert myvocab['Meer']['series_rel'] == [0, 600000.0]
 
 
 def test_cli():

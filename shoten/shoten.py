@@ -249,6 +249,53 @@ def refine_frequencies(vocab, bins):
     return vocab
 
 
+def compute_frequencies(vocab, bins, oldestday, newestday):
+    "Compute absolute frequencies of words."
+    timeseries = [0] * len(bins)
+    # frequency computations
+    freqsum = sum(len(vocab[l]['time_series']) for l in vocab)
+    for wordform in vocab:
+        # parts per million
+        vocab[wordform]['total'] = float('{0:.3f}'.format((len(vocab[wordform]['time_series']) / freqsum)*1000000))
+        counter = 0
+        freqseries = [0] * len(bins)
+        mydays = Counter(vocab[wordform]['time_series'])
+        for day in range(oldestday, newestday, -1):
+            if day in mydays:
+                counter += mydays[day]
+            if day % 7 == 0:
+                try:
+                    freqseries[bins.index(day)] = counter
+                    counter = 0
+                except ValueError:
+                    pass
+        vocab[wordform]['series_abs'] = freqseries
+        # spare memory
+        vocab[wordform]['time_series'] = array('H')
+        for i in range(len(bins)):
+            timeseries[i] += vocab[wordform]['series_abs'][i]
+    return vocab, timeseries
+
+
+def combine_frequencies(vocab, bins, timeseries):
+    "Compute relative frequencies and word statistics."
+    for wordform in vocab:
+        vocab[wordform]['series_rel'] = [0] * len(bins)
+        for i in range(len(bins)):
+            try:
+                vocab[wordform]['series_rel'][i] = (vocab[wordform]['series_abs'][i] / timeseries[i])*1000000
+            except ZeroDivisionError:
+                pass
+        # take non-zero values and perform calculations
+        series = [f for f in vocab[wordform]['series_rel'] if f != 0]
+        # todo: skip if series too short
+        vocab[wordform]['stddev'] = float('{0:.3f}'.format(np.std(series)))
+        vocab[wordform]['mean'] = float('{0:.3f}'.format(np.mean(series)))
+        # spare memory
+        vocab[wordform]['series_abs'] = []
+    return vocab
+
+
 def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
     "Compute long-term frequency info out of a directory containing text files."
     # init
@@ -278,55 +325,21 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
 
     # lemmatize and dehyphen
     myvocab = refine_vocab(myvocab, lemmadata)
+
     # determine bins
     bins = calculate_bins(oldestday, newestday)
     if not bins:
         print('Not enough days to compute frequencies')
         return freqs
-    timeseries = [0] * len(bins)
-    #print(oldestday, newestday)
 
     # clean and refine the data
     myvocab = refine_frequencies(myvocab, bins)
 
     # frequency computations
-    freqsum = sum(len(myvocab[l]['time_series']) for l in myvocab)
-    for wordform in myvocab:
-        # parts per million
-        myvocab[wordform]['total'] = float('{0:.3f}'.format((len(myvocab[wordform]['time_series']) / freqsum)*1000000))
-        counter = 0
-        freqseries = [0] * len(bins)
-        mydays = Counter(myvocab[wordform]['time_series'])
-        for day in range(oldestday, newestday, -1):
-            if day in mydays:
-                counter += mydays[day]
-            if day % 7 == 0:
-                try:
-                    freqseries[bins.index(day)] = counter
-                    counter = 0
-                except ValueError:
-                    pass
-        myvocab[wordform]['series_abs'] = freqseries
-        # spare memory
-        myvocab[wordform]['time_series'] = array('H')
-        for i in range(len(bins)):
-            timeseries[i] += myvocab[wordform]['series_abs'][i]
+    myvocab, timeseries = compute_frequencies(myvocab, bins, oldestday, newestday)
 
     # sum up frequencies
-    for wordform in myvocab:
-        myvocab[wordform]['series_rel'] = [0] * len(bins)
-        for i in range(len(bins)):
-            try:
-                myvocab[wordform]['series_rel'][i] = (myvocab[wordform]['series_abs'][i] / timeseries[i])*1000000
-            except ZeroDivisionError:
-                pass
-        # take non-zero values and perform calculations
-        series = [f for f in myvocab[wordform]['series_rel'] if f != 0]
-        # todo: skip if series too short
-        myvocab[wordform]['stddev'] = float('{0:.3f}'.format(np.std(series)))
-        myvocab[wordform]['mean'] = float('{0:.3f}'.format(np.mean(series)))
-        # spare memory
-        myvocab[wordform]['series_abs'] = []
+    myvocab = combine_frequencies(vocab, timeseries)
 
     return myvocab
 
