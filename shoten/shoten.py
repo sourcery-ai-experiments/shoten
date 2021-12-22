@@ -238,7 +238,7 @@ def refine_frequencies(vocab, bins):
     deletions = []
     # remove occurrences that are out of bounds: no complete week
     for word in vocab:
-        new_series = array('H', [d for d in vocab[word]['time_series'] if not d < bins[-1] and not d > bins[0]])
+        new_series = array('H', [d for d in vocab[word]['time_series'] if bins[-1] <= d < bins[0]])
         if len(new_series) <= 1:
             deletions.append(word)
         else:
@@ -268,7 +268,7 @@ def compute_frequencies(vocab, bins):
             timeseries[i] += total
         vocab[wordform]['series_abs'] = array('H', reversed(freqseries))
         # spare memory
-        vocab[wordform]['time_series'] = []
+        del vocab[wordform]['time_series']
     return vocab, list(reversed(timeseries))
 
 
@@ -287,7 +287,7 @@ def combine_frequencies(vocab, bins, timeseries):
         vocab[wordform]['stddev'] = float('{0:.3f}'.format(np.std(series)))
         vocab[wordform]['mean'] = float('{0:.3f}'.format(np.mean(series)))
         # spare memory
-        vocab[wordform]['series_abs'] = []
+        del vocab[wordform]['series_abs']
     return vocab
 
 
