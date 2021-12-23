@@ -211,6 +211,21 @@ def test_filters():
     newvocab = zipf_filter(deepcopy(myvocab), freqperc=20, lenperc=20, verbose=True)
     assert len(newvocab) == 4
 
+    # headings
+    myvocab = {
+        'Berg': {'time_series': array('H', [1, 2, 3]), 'headings': True},
+        'Tal': {'time_series': array('H', [1, 2, 3]), 'headings': False},
+    }
+    myvocab = headings_filter(myvocab)
+    assert len(myvocab) == 1
+
+    # n-grams
+    myvocab = dict.fromkeys(['Berg', 'Berge', 'Bergen', 'Berger', 'Bernstein', 'Tal', 'Täler'])
+    newvocab = ngram_filter(deepcopy(myvocab), threshold=50, verbose=True)
+    assert list(newvocab.keys()) == ['Berg', 'Berge', 'Berger', 'Bernstein', 'Tal']
+    newvocab = ngram_filter(deepcopy(myvocab), threshold=10, verbose=True)
+    assert list(newvocab.keys()) == ['Berge', 'Bernstein', 'Tal']
+
 
 
 #def test_readme():
