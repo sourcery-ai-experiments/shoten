@@ -21,6 +21,8 @@ from shoten.filters import *
 from simplemma import load_data
 
 
+DE_LEMMADATA = load_data('de')
+
 
 def test_basics():
     """Test basic functions."""
@@ -69,11 +71,9 @@ def test_basics():
 
 def test_internals():
     """Test internal functions."""
-    lemmadata = load_data('de')
-
     # filter known lemmata
-    assert filter_lemmaform('Berge', lemmadata, lemmafilter=True) is None
-    assert filter_lemmaform('Berge', lemmadata, lemmafilter=False) == 'Berg'
+    assert filter_lemmaform('Berge', DE_LEMMADATA, lemmafilter=True) is None
+    assert filter_lemmaform('Berge', DE_LEMMADATA, lemmafilter=False) == 'Berg'
 
     # store in vocabulary
     myvocab = {}
@@ -95,9 +95,9 @@ def test_internals():
 
     # refine vocab
     myvocab['Berge'] = {'time_series': array('H', [5]), 'sources': Counter(['source3']), 'headings': False}
-    newvocab = refine_vocab(deepcopy(myvocab), lemmadata, lemmafilter=False, dehyphenation=False)
+    newvocab = refine_vocab(deepcopy(myvocab), DE_LEMMADATA, lemmafilter=False, dehyphenation=False)
     assert 'Berg' in newvocab and 'de-hyphening' in newvocab
-    newvocab = refine_vocab(deepcopy(myvocab), lemmadata, lemmafilter=True, dehyphenation=True)
+    newvocab = refine_vocab(deepcopy(myvocab), DE_LEMMADATA, lemmafilter=True, dehyphenation=True)
     assert 'Berge' not in newvocab and 'Berg' not in newvocab and 'de-hyphening' not in newvocab
 
     # filter levels
@@ -145,21 +145,72 @@ def test_cli():
 
 
 def test_filters():
+    "Test functions for filtering of vocabulary."
+    # init
     myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
     assert len(myvocab) == 3
-    myvocab = sources_freqfilter(myvocab)
-    assert len(myvocab) == 2
-    myvocab = shortness_filter(myvocab)
-    assert len(myvocab) == 1
-    myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
-    myvocab = sources_filter(myvocab, Counter(['Source1']))
-    assert len(myvocab) == 1
-    myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
-    myvocab = wordlist_filter(myvocab, ['Tests', 'Other'], keep_words=False)
-    assert len(myvocab) == 1
-    myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
-    myvocab = wordlist_filter(myvocab, ['Tests', 'Other'], keep_words=True)
-    assert len(myvocab) == 2
+
+    # combined
+    newvocab = combined_filters(deepcopy(myvocab), 'unknown')
+    # assert newvocab == myvocab
+
+    # input
+    assert is_relevant_input('testing')
+    assert is_relevant_input('testing.')
+    assert not is_relevant_input('')
+    assert not is_relevant_input('123')
+    assert not is_relevant_input('abcde12345')
+    assert not is_relevant_input('ABCDEF')
+
+    # lemmata
+    newvocab = recognized_by_simplemma(deepcopy(myvocab), DE_LEMMADATA)
+    assert newvocab == {}
+
+    # filters
+    newvocab = sources_freqfilter(deepcopy(myvocab))
+    assert len(newvocab) == 2
+    newvocab = shortness_filter(deepcopy(newvocab))
+    assert len(newvocab) == 1
+    newvocab = sources_filter(deepcopy(myvocab), Counter(['Source1']))
+    assert len(newvocab) == 1
+    newvocab = wordlist_filter(deepcopy(myvocab), ['Tests', 'Other'], keep_words=False)
+    assert len(newvocab) == 1
+    newvocab = wordlist_filter(deepcopy(myvocab), ['Tests', 'Other'], keep_words=True)
+    assert len(newvocab) == 2
+
+    # scoring function
+    scores = {}
+    scores = scoring_func(scores, 1, newvocab)
+    assert scores == {'Other': 1, 'Tests': 1}
+    scores = scoring_func(scores, 1, newvocab)
+    assert scores == {'Other': 2, 'Tests': 2}
+
+    # hyphens
+    myvocab = {
+        'de-hyphening': {'time_series': array('H', [1, 2, 3])},
+        'hyphens-stuff': {'time_series': array('H', [3, 3])},
+        'hyphen-stuff': {'time_series': array('H', [3, 3, 3])},
+        'stuff': {'time_series': array('H', [3, 3, 3, 3, 3])}
+    }
+    myvocab = convert_to_numpy(myvocab)
+    newvocab = hyphenated_filter(myvocab, perc=0, verbose=False)
+    assert list(newvocab.keys()) == ['de-hyphening', 'stuff']
+
+    # zipf
+    myvocab = {
+        'short': {'time_series': array('H', [1, 2, 3])},
+        'the-longest-word': {'time_series': array('H', [1, 2, 3])},
+        'longer': {'time_series': array('H', [1])},
+        'other1': {'time_series': array('H', [1, 2, 3])},
+        'this': {'time_series': array('H', [1, 2])},
+        'one': {'time_series': array('H', [1, 2, 3, 4, 5])},
+    }
+    myvocab = convert_to_numpy(myvocab)
+    newvocab = zipf_filter(deepcopy(myvocab), freqperc=80, lenperc=20, verbose=True)
+    assert len(newvocab) == 5
+    newvocab = zipf_filter(deepcopy(myvocab), freqperc=20, lenperc=20, verbose=True)
+    assert len(newvocab) == 4
+
 
 
 #def test_readme():
