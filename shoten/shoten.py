@@ -25,6 +25,15 @@ from .filters import combined_filters, is_relevant_input
 TODAY = datetime.today()
 
 
+class Entry:
+    "Defines a class for dictionaries entries, containing metadata and stats."
+    __slots__ = ['absfreq', 'headings', 'mean', 'series_abs', 'series_rel', 'sources', 'stddev', 'time_series', 'total']
+    def __init__(self):
+        self.headings = False
+        self.sources = Counter()
+        self.time_series = array('H')
+
+
 def find_files(dirname):
     "Search a directory for files."
     for thepath, _, files in walk(dirname):
@@ -55,24 +64,24 @@ def filter_lemmaform(token, lemmadata, lemmafilter=True):
 def putinvocab(myvocab, wordform, timediff, source, inheadings=False):
     "Store the word form in the vocabulary or add a new occurrence to it."
     if wordform not in myvocab:
-        myvocab[wordform] = dict(time_series=array('H'), sources=Counter(), headings=False)
-    myvocab[wordform]['time_series'].append(timediff)
+        myvocab[wordform] = Entry()
+    myvocab[wordform].time_series.append(timediff)
     if source is not None and len(source) > 0:
-        myvocab[wordform]['sources'].update([source])
+        myvocab[wordform].sources.update([source])
     if inheadings is True:
-        myvocab[wordform]['headings'] = True
+        myvocab[wordform].headings = True
     return myvocab
 
 
 def prune_vocab(myvocab, first, second):
     "Append characteristics of wordform to be deleted to an other one."
     if second not in myvocab:
-        myvocab[second] = dict(time_series=array('H'), sources=Counter(), headings=False)
-    myvocab[second]['time_series'] = myvocab[second]['time_series'] + myvocab[first]['time_series']
+        myvocab[second] = Entry()
+    myvocab[second].time_series = myvocab[second].time_series + myvocab[first].time_series
     try:
-        myvocab[second]['sources'] = sum((myvocab[second]['sources'], myvocab[first]['sources']), Counter())
-        if myvocab[first]['headings'] is True:
-            myvocab[second]['headings'] = True
+        myvocab[second].sources = sum((myvocab[second].sources, myvocab[first].sources), Counter())
+        if myvocab[first].headings is True:
+            myvocab[second].headings = True
     # additional info potentially not present
     except KeyError:
         pass
@@ -122,7 +131,7 @@ def refine_vocab(myvocab, lemmadata, lemmafilter=False, dehyphenation=True):
 def convert_to_numpy(myvocab):
     "Convert time series to numpy array."
     for wordform in myvocab:
-        myvocab[wordform]['time_series'] = np.array(myvocab[wordform]['time_series'])
+        myvocab[wordform].time_series = np.array(myvocab[wordform].time_series)
     return myvocab
 
 
@@ -238,11 +247,11 @@ def refine_frequencies(vocab, bins):
     deletions = []
     # remove occurrences that are out of bounds: no complete week
     for word in vocab:
-        new_series = array('H', [d for d in vocab[word]['time_series'] if bins[-1] <= d < bins[0]])
+        new_series = array('H', [d for d in vocab[word].time_series if bins[-1] <= d < bins[0]])
         if len(new_series) <= 1:
             deletions.append(word)
         else:
-            vocab[word]['time_series'] = new_series
+            vocab[word].time_series = new_series
     # remove words with too little data
     for word in deletions:
         del vocab[word]
@@ -253,12 +262,12 @@ def compute_frequencies(vocab, bins):
     "Compute absolute frequencies of words."
     timeseries = [0] * len(bins)
     # frequency computations
-    freqsum = sum(len(vocab[l]['time_series']) for l in vocab)
+    freqsum = sum(len(vocab[l].time_series) for l in vocab)
     for wordform in vocab:
         # parts per million
-        vocab[wordform]['total'] = float('{0:.3f}'.format((len(vocab[wordform]['time_series']) / freqsum)*1000000))
+        vocab[wordform].total = float('{0:.3f}'.format((len(vocab[wordform].time_series) / freqsum)*1000000))
         freqseries = []
-        days = Counter(vocab[wordform]['time_series'])
+        days = Counter(vocab[wordform].time_series)
         for i, split in enumerate(bins):
             if i != 0:
                 total = sum(days[d] for d in days if bins[i-1] < d <= split)
@@ -266,28 +275,28 @@ def compute_frequencies(vocab, bins):
                 total = sum(days[d] for d in days if d <= split)
             freqseries.append(total)
             timeseries[i] += total
-        vocab[wordform]['series_abs'] = array('H', reversed(freqseries))
+        vocab[wordform].series_abs = array('H', reversed(freqseries))
         # spare memory
-        del vocab[wordform]['time_series']
+        del vocab[wordform].time_series
     return vocab, list(reversed(timeseries))
 
 
 def combine_frequencies(vocab, bins, timeseries):
     "Compute relative frequencies and word statistics."
     for wordform in vocab:
-        vocab[wordform]['series_rel'] = array('f')
+        vocab[wordform].series_rel = array('f')
         for i in range(len(bins)):
             try:
-                vocab[wordform]['series_rel'].append((vocab[wordform]['series_abs'][i] / timeseries[i])*1000000)
+                vocab[wordform].series_rel.append((vocab[wordform].series_abs[i] / timeseries[i])*1000000)
             except ZeroDivisionError:
-                vocab[wordform]['series_rel'].append(0.0)
+                vocab[wordform].series_rel.append(0.0)
         # take non-zero values and perform calculations
-        series = [f for f in vocab[wordform]['series_rel'] if f != 0.0]
+        series = [f for f in vocab[wordform].series_rel if f != 0.0]
         # todo: skip if series too short
-        vocab[wordform]['stddev'] = float('{0:.3f}'.format(np.std(series)))
-        vocab[wordform]['mean'] = float('{0:.3f}'.format(np.mean(series)))
+        vocab[wordform].stddev = float('{0:.3f}'.format(np.std(series)))
+        vocab[wordform].mean = float('{0:.3f}'.format(np.mean(series)))
         # spare memory
-        del vocab[wordform]['series_abs']
+        del vocab[wordform].series_abs
     return vocab
 
 
@@ -315,8 +324,8 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
             for token in simple_tokenizer(' '.join(mytree.xpath('//text')[0].itertext())):
                 if is_relevant_input(token) is True:
                     if token not in myvocab:
-                        myvocab[token] = dict(time_series=array('H'))
-                    myvocab[token]['time_series'].append(timediff)
+                        myvocab[token] = Entry()
+                    myvocab[token].time_series.append(timediff)
 
     # lemmatize and dehyphen
     myvocab = refine_vocab(myvocab, lemmadata)
@@ -334,7 +343,7 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
     myvocab, timeseries = compute_frequencies(myvocab, bins)
 
     # sum up frequencies
-    myvocab = combine_frequencies(vocab, timeseries)
+    myvocab = combine_frequencies(myvocab, bins, timeseries)
 
     return myvocab
 
@@ -346,16 +355,16 @@ def store_freqlist(freqs, filename, thres_a=1, thres_b=0.2):
         tsvwriter.writerow(['word', 'total', 'mean', 'stddev', 'relfreqs'])
         for entry in sorted(freqs):
             # only store statistically significant entries
-            if freqs[entry]['stddev'] == 0:
+            if freqs[entry].stddev == 0:
                 continue
-            if freqs[entry]['mean'] > thres_a or \
+            if freqs[entry].mean > thres_a or \
                 (
-                    freqs[entry]['mean'] > thres_b and \
-                    freqs[entry]['stddev'] < freqs[entry]['mean']/2
+                    freqs[entry].mean > thres_b and \
+                    freqs[entry].stddev < freqs[entry].mean/2
                 ):
                 tsvwriter.writerow(
-                    [entry, freqs[entry]['total'], freqs[entry]['mean'],
-                     freqs[entry]['stddev'], freqs[entry]['series_rel']]
+                    [entry, freqs[entry].total, freqs[entry].mean,
+                     freqs[entry].stddev, freqs[entry].series_rel]
                 )
 
 

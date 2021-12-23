@@ -6,6 +6,7 @@ import re
 import string
 
 from collections import Counter
+#from copy import deepcopy
 from math import ceil
 
 import numpy as np
@@ -42,7 +43,7 @@ def store_results(myvocab, filename):
         tsvwriter.writerow(['word', 'sources', 'time series'])
         # for token in sorted(myvocab, key=locale.strxfrm):
         for entry in myvocab:
-            tsvwriter.writerow([entry, ','.join(myvocab[entry]['sources']), str(myvocab[entry]['time_series'].tolist())])
+            tsvwriter.writerow([entry, ','.join(myvocab[entry].sources), str(myvocab[entry].time_series.tolist())])
 
 
 def combined_filters(myvocab, setting):
@@ -73,7 +74,7 @@ def is_relevant_input(token):
 def hapax_filter(myvocab, freqcount=2):
     '''Eliminate hapax legomena and delete same date only.'''
     old_len = len(myvocab)
-    for token in [t for t in myvocab if np.unique(myvocab[t]['time_series']).shape[0] <= freqcount]:
+    for token in [t for t in myvocab if np.unique(myvocab[t].time_series).shape[0] <= freqcount]:
         del myvocab[token]
     print_changes('sameness/hapax', old_len, len(myvocab))
     return myvocab
@@ -110,10 +111,10 @@ def shortness_filter(myvocab, threshold=20):
 def frequency_filter(myvocab, max_perc=50, min_perc=.001): # 50 / 0.01
     '''Reduce dict size by stripping least and most frequent items.'''
     old_len = len(myvocab)
-    myfreq = np.array([myvocab[l]['time_series'].shape[0] for l in myvocab])
+    myfreq = np.array([myvocab[l].time_series.shape[0] for l in myvocab])
     min_thres, max_thres = np.percentile(myfreq, min_perc), np.percentile(myfreq, max_perc)
     for token in [t for t in myvocab if
-                  myvocab[t]['time_series'].shape[0] < min_thres or myvocab[t]['time_series'].shape[0] > max_thres
+                  myvocab[t].time_series.shape[0] < min_thres or myvocab[t].time_series.shape[0] > max_thres
                  ]:
         del myvocab[token]
     print_changes('most/less frequent', old_len, len(myvocab))
@@ -123,13 +124,13 @@ def frequency_filter(myvocab, max_perc=50, min_perc=.001): # 50 / 0.01
 def hyphenated_filter(myvocab, perc=50, verbose=False): # threshold in percent
     '''Reduce dict size by deleting hyphenated tokens when the parts are frequent.'''
     deletions, old_len = [], len(myvocab)
-    myfreqs = np.array([myvocab[l]['time_series'].shape[0] for l in myvocab])
+    myfreqs = np.array([myvocab[l].time_series.shape[0] for l in myvocab])
     threshold = np.percentile(myfreqs, perc)
     for word in [w for w in myvocab if '-' in w]:
         mylist = word.split('-')
         firstpart, secondpart = mylist[0], mylist[1]
-        if firstpart in myvocab and myvocab[firstpart]['time_series'].shape[0] > threshold or \
-           secondpart in myvocab and myvocab[secondpart]['time_series'].shape[0] > threshold:
+        if firstpart in myvocab and myvocab[firstpart].time_series.shape[0] > threshold or \
+           secondpart in myvocab and myvocab[secondpart].time_series.shape[0] > threshold:
             deletions.append(word)
     if verbose is True:
         print(sorted(deletions))
@@ -143,9 +144,9 @@ def oldest_filter(myvocab, threshold=50):
     '''Reduce number of candidate by stripping the oldest.'''
     # todo: what about cases like [365, 1, 1, 1] ?
     old_len = len(myvocab)
-    myratios = np.array([np.sum(myvocab[l]['time_series'])/myvocab[l]['time_series'].shape[0] for l in myvocab])
+    myratios = np.array([np.sum(myvocab[l].time_series)/myvocab[l].time_series.shape[0] for l in myvocab])
     threshold = np.percentile(myratios, threshold)
-    for token in [t for t in myvocab if np.sum(myvocab[t]['time_series'])/myvocab[t]['time_series'].shape[0] > threshold]:
+    for token in [t for t in myvocab if np.sum(myvocab[t].time_series)/myvocab[t].time_series.shape[0] > threshold]:
         del myvocab[token]
     print_changes('oldest', old_len, len(myvocab))
     return myvocab
@@ -155,15 +156,15 @@ def zipf_filter(myvocab, freqperc=65, lenperc=35, verbose=False):
     '''Filter candidates based on a approximation of Zipf's law.'''
     # todo: count length without hyphen or punctuation: len(l) - l.count('-')
     old_len = len(myvocab)
-    freqs = np.array([myvocab[l]['time_series'].shape[0] for l in myvocab])
+    freqs = np.array([myvocab[l].time_series.shape[0] for l in myvocab])
     freqthreshold = np.percentile(freqs, freqperc)
     lengths = np.array([len(l) for l in myvocab])
     lenthreshold = np.percentile(lengths, lenperc)
     deletions = []
-    for token in [t for t in myvocab if myvocab[t]['time_series'].shape[0] >= freqthreshold and len(t) <= lenthreshold]:
+    for token in [t for t in myvocab if myvocab[t].time_series.shape[0] >= freqthreshold and len(t) <= lenthreshold]:
         deletions.append(token)
         # if verbose is True:
-            # print(token, len(token), myvocab[token]['time_series'].shape[0])
+            # print(token, len(token), myvocab[token].time_series.shape[0])
         del myvocab[token]
     if verbose is True:
         print(sorted(deletions))
@@ -174,22 +175,22 @@ def zipf_filter(myvocab, freqperc=65, lenperc=35, verbose=False):
 def freshness_filter(myvocab, percentage=10):
     '''Define a freshness threshold to model series of token occurrences in time.'''
     old_len = len(myvocab)
-    mysums = np.array([np.sum(myvocab[l]['time_series']) for l in myvocab])
+    mysums = np.array([np.sum(myvocab[l].time_series) for l in myvocab])
     datethreshold = np.percentile(mysums, percentage)
     deletions = []
     for token in myvocab:
         # re-order
-        myvocab[token]['time_series'] = -np.sort(-myvocab[token]['time_series'])
+        myvocab[token].time_series = -np.sort(-myvocab[token].time_series)
         # thresholds
-        thresh = myvocab[token]['time_series'].shape[0]*(percentage/100)
-        freshnessindex = np.sum(myvocab[token]['time_series'][-ceil(thresh):])
-        oldnessindex = np.sum(myvocab[token]['time_series'][:ceil(thresh)])
+        thresh = myvocab[token].time_series.shape[0]*(percentage/100)
+        freshnessindex = np.sum(myvocab[token].time_series[-ceil(thresh):])
+        oldnessindex = np.sum(myvocab[token].time_series[:ceil(thresh)])
         if oldnessindex < datethreshold:
-            #if oldnessindex < np.percentile(myvocab[token]['time_series'], percentage):
+            #if oldnessindex < np.percentile(myvocab[token].time_series, percentage):
             #    continue
-            thresh = myvocab[token]['time_series'].shape[0]*(percentage/100)
-            freshnessindex = np.sum(myvocab[token]['time_series'][-ceil(thresh):])
-            if freshnessindex < np.percentile(myvocab[token]['time_series'], percentage):
+            thresh = myvocab[token].time_series.shape[0]*(percentage/100)
+            freshnessindex = np.sum(myvocab[token].time_series[-ceil(thresh):])
+            if freshnessindex < np.percentile(myvocab[token].time_series, percentage):
                 deletions.append(token)
             # print(myvocab[token], freshnessindex, oldnessindex, token)
     for item in deletions:
@@ -203,16 +204,16 @@ def sources_freqfilter(myvocab, threshold=2, balanced=True):
     deletions = []
     i, j = 0, 0
     for word in myvocab:
-        if len(myvocab[word]['sources']) == 0:
+        if len(myvocab[word].sources) == 0:
             continue
         # absolute number
-        if len(myvocab[word]['sources']) < threshold:
+        if len(myvocab[word].sources) < threshold:
             deletions.append(word)
             i += 1
             continue
         # distribution of sources
         if balanced is True:
-            values = [t[1] for t in myvocab[word]['sources'].most_common()]
+            values = [t[1] for t in myvocab[word].sources.most_common()]
             # first value too present compared to the rest
             if values[0] >= 4*values[1]: # (sum(values)/len(values)):
                 deletions.append(word)
@@ -232,8 +233,8 @@ def sources_filter(myvocab, myset):
     deletions = []
     for word in myvocab:
         deletion_flag = True
-        if len(myvocab[word]['sources']) > 0:
-            for source in myvocab[word]['sources']:
+        if len(myvocab[word].sources) > 0:
+            for source in myvocab[word].sources:
                 # for / else construct
                 for mystring in myset:
                     if mystring in source:
@@ -271,7 +272,7 @@ def wordlist_filter(myvocab, mylist, keep_words=False):
 
 def headings_filter(myvocab):
     '''Filter words based on their presence in headings.'''
-    deletions = [word for word in myvocab if myvocab[word]['headings'] is False]
+    deletions = [word for word in myvocab if myvocab[word].headings is False]
     old_len = len(myvocab)
     for item in deletions:
         del myvocab[item]
@@ -298,20 +299,20 @@ def longtermfilter(myvocab, filename, mustexist=False, startday=1):
     oldestday = startday + 6
     allfreqs = 0
     for word in myvocab:
-        mydays = Counter(myvocab[word]['time_series'])
+        mydays = Counter(myvocab[word].time_series)
         occurrences = sum(
             mydays[day]
             for day in range(oldestday, startday - 1, -1)
             if day in mydays
         )
 
-        myvocab[word]['absfreq'] = occurrences
+        myvocab[word].absfreq = occurrences
         allfreqs += occurrences
     # relative frequency
     deletions = []
     intersection = [w for w in myvocab if w in freqlimits]
     for word in intersection:
-        relfreq = (myvocab[word]['absfreq'] / allfreqs)*1000000
+        relfreq = (myvocab[word].absfreq / allfreqs)*1000000
         # threshold defined by long-term frequencies
         if relfreq < freqlimits[word]:
             #print(word, relfreq, freqlimits[word])
