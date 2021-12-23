@@ -30,6 +30,7 @@ def print_changes(phase, old_len, new_len):
 
 
 def scoring_func(scores, value, newvocab):
+    'Defines scores for each word and add values.'
     for wordform in set(newvocab):
         if wordform not in scores:
             scores[wordform] = 0
@@ -38,7 +39,8 @@ def scoring_func(scores, value, newvocab):
 
 
 def store_results(myvocab, filename):
-    with open(filename, 'w') as outfile:
+    'Write vocabulary with essential data to file.'
+    with open(filename, 'w', encoding='utf-8') as outfile:
         tsvwriter = csv.writer(outfile, delimiter='\t')
         tsvwriter.writerow(['word', 'sources', 'time series'])
         # for token in sorted(myvocab, key=locale.strxfrm):
@@ -60,6 +62,7 @@ def combined_filters(myvocab, setting):
 
 
 def is_relevant_input(token):
+    'Determine if the given token is to be considered relevant for further processing.'
     # apply filter first
     if not 5 <= len(token) <= 50 or token.startswith('@') or token.startswith('#') or token.endswith('-'):
         return False
@@ -81,6 +84,7 @@ def hapax_filter(myvocab, freqcount=2):
 
 
 def recognized_by_simplemma(myvocab, lemmadata):
+    'Run the simplemma lemmatizer to check if input is recognized.'
     old_len = len(myvocab)
     for token in [t for t in myvocab if is_known(t, lemmadata)]:
         del myvocab[token]
@@ -281,8 +285,9 @@ def headings_filter(myvocab):
 
 
 def read_freqlist(filename):
+    'Read frequency info from a TSV file.'
     freqlimits = {}
-    with open(filename, 'r') as csvfile:
+    with open(filename, 'r', encoding='utf-8') as csvfile:
         tsvreader = csv.reader(csvfile, delimiter='\t')
         # skip headline
         next(tsvreader)
@@ -295,6 +300,7 @@ def read_freqlist(filename):
 
 
 def longtermfilter(myvocab, filename, mustexist=False, startday=1):
+    'Discard words which are not significantly above a mean long-term frequency.'
     freqlimits = read_freqlist(filename)
     oldestday = startday + 6
     allfreqs = 0

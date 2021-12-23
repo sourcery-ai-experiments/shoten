@@ -8,14 +8,14 @@ import pickle
 from array import array
 from collections import Counter, defaultdict
 from datetime import datetime
-from os import path, walk # cpu_count
+from os import path, walk  # cpu_count
 from pathlib import Path
 
 import numpy as np
 
 from courlan import extract_domain
 from simplemma import load_data, lemmatize, simple_tokenizer, is_known
-from htmldate.utils import load_html #, sanitize
+from htmldate.utils import load_html  #, sanitize
 
 import _pickle as cpickle
 
@@ -178,11 +178,13 @@ def read_file(filepath, maxdiff=1000, authorregex=None):
             yield token, timediff, source, token in headwords
 
 
-def gen_wordlist(mydir, langcodes=[], maxdiff=1000, authorregex=None, lemmafilter=False):
+def gen_wordlist(mydir, langcodes=None, maxdiff=1000, authorregex=None, lemmafilter=False):
     """Generate a list of occurrences (tokens or lemmatas) from an input directory
        containing XML-TEI files."""
     # init
     myvocab = {}
+    if langcodes is None:
+        langcodes = []
     # load language data
     lemmadata = load_data(*langcodes)
     # read files
@@ -194,11 +196,13 @@ def gen_wordlist(mydir, langcodes=[], maxdiff=1000, authorregex=None, lemmafilte
     return convert_to_numpy(myvocab)
 
 
-def load_wordlist(myfile, langcodes=[], maxdiff=1000):
+def load_wordlist(myfile, langcodes=None, maxdiff=1000):
     """Load a pre-generated list of occurrences in TSV-format:
        token/lemma + TAB + date in YYYY-MM-DD format + TAB + source (optional)."""
     filepath = str(Path(__file__).parent / myfile)
     myvocab = defaultdict(list)
+    if langcodes is None:
+        langcodes = []
     # load language data
     lemmadata = load_data(*langcodes)
     with open(filepath, 'r', encoding='utf-8') as filehandle:
@@ -305,10 +309,12 @@ def combine_frequencies(vocab, bins, timeseries):
     return vocab
 
 
-def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
+def gen_freqlist(mydir, langcodes=None, maxdiff=1000, mindiff=0):
     "Compute long-term frequency info out of a directory containing text files."
     # init
-    myvocab, freqs, oldestday, newestday = dict(), dict(), 0, maxdiff
+    myvocab, freqs, oldestday, newestday = {}, {}, 0, maxdiff
+    if langcodes is None:
+        langcodes = []
     # load language data
     lemmadata = load_data(*langcodes)
 
@@ -355,7 +361,7 @@ def gen_freqlist(mydir, langcodes=[], maxdiff=1000, mindiff=0):
 
 def store_freqlist(freqs, filename, thres_a=1, thres_b=0.2):
     "Write relevant (defined by frequency) long-term occurrences info to a file."
-    with open(filename, 'w') as outfile:
+    with open(filename, 'w', encoding='utf-8') as outfile:
         tsvwriter = csv.writer(outfile, delimiter='\t')
         tsvwriter.writerow(['word', 'total', 'mean', 'stddev', 'relfreqs'])
         for entry in sorted(freqs):

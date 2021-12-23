@@ -9,6 +9,7 @@ from .filters import combined_filters
 
 
 def parse_args(args):
+    'Parse and return CLI arguments.'
     parser = argparse.ArgumentParser(description='Command-line interface for Shoten')
     parser.add_argument("-f", "--read-file",
                         help="name of input file",
@@ -32,6 +33,7 @@ def parse_args(args):
 
 
 def process_args(args):
+    'Process input according to CLI arguments.'
     if args.read_file:
         myvocab = load_wordlist(args.read_file, args.language)
     elif args.read_dir:
