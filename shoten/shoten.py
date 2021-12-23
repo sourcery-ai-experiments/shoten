@@ -29,9 +29,15 @@ class Entry:
     "Defines a class for dictionaries entries, containing metadata and stats."
     __slots__ = ['absfreq', 'headings', 'mean', 'series_abs', 'series_rel', 'sources', 'stddev', 'time_series', 'total']
     def __init__(self):
-        self.headings = False
+        self.absfreq: int
+        self.headings: bool = False
+        self.mean: float
+        self.series_abs = array('f')
+        self.series_rel = array('f')
         self.sources = Counter()
+        self.stddev: float
         self.time_series = array('H')
+        self.total: int
 
 
 def find_files(dirname):
@@ -284,7 +290,6 @@ def compute_frequencies(vocab, bins):
 def combine_frequencies(vocab, bins, timeseries):
     "Compute relative frequencies and word statistics."
     for wordform in vocab:
-        vocab[wordform].series_rel = array('f')
         for i in range(len(bins)):
             try:
                 vocab[wordform].series_rel.append((vocab[wordform].series_abs[i] / timeseries[i])*1000000)

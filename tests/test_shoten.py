@@ -25,11 +25,12 @@ DE_LEMMADATA = load_data('de')
 
 
 # Turns a dictionary into a class
-class ToEntry():
+class ToEntry(Entry):
     "Convert a dictionary to the entry class."
     def __init__(self, my_dict):
         for key in my_dict:
             setattr(self, key, my_dict[key])
+        setattr(self, 'series_rel', array('f'))
 
 
 def test_basics():
