@@ -299,10 +299,10 @@ def read_freqlist(filename):
     return freqlimits
 
 
-def longtermfilter(myvocab, filename, mustexist=False, startday=1):
+def longtermfilter(myvocab, filename, mustexist=False, startday=1, interval=7):
     'Discard words which are not significantly above a mean long-term frequency.'
     freqlimits = read_freqlist(filename)
-    oldestday = startday + 6
+    oldestday = startday + interval - 1
     allfreqs = 0
     for word in myvocab:
         mydays = Counter(myvocab[word].time_series)
@@ -311,7 +311,9 @@ def longtermfilter(myvocab, filename, mustexist=False, startday=1):
             for day in range(oldestday, startday - 1, -1)
             if day in mydays
         )
-
+        # compare with maximum possible value
+        occurrences = min(65536, occurrences)
+        # compute totals
         myvocab[word].absfreq = occurrences
         allfreqs += occurrences
     # relative frequency
@@ -324,8 +326,7 @@ def longtermfilter(myvocab, filename, mustexist=False, startday=1):
             #print(word, relfreq, freqlimits[word])
             deletions.append(word)
     if mustexist is True:
-        exclusion = [w for w in myvocab if w not in freqlimits]
-        deletions += exclusion
+        deletions += [w for w in myvocab if w not in freqlimits]
     old_len = len(myvocab)
     for item in deletions:
         del myvocab[item]

@@ -249,7 +249,7 @@ def apply_filters(myvocab, setting='normal'):
 
 def calculate_bins(oldestday, newestday, interval=7):
     "Calculate time frame bins to fit the data (usually weeks)."
-    return [d for d in range(oldestday, newestday - 1, -1) if oldestday - d >= 7 and d % interval == 0]
+    return [d for d in range(oldestday, newestday - 1, -1) if oldestday - d >= interval and d % interval == 0]
 
 
 def refine_frequencies(vocab, bins):
@@ -311,7 +311,7 @@ def combine_frequencies(vocab, bins, timeseries):
     return vocab
 
 
-def gen_freqlist(mydir, langcodes=None, maxdiff=1000, mindiff=0):
+def gen_freqlist(mydir, langcodes=None, maxdiff=1000, mindiff=0, interval=7):
     "Compute long-term frequency info out of a directory containing text files."
     # init
     myvocab, freqs, oldestday, newestday = {}, {}, 0, maxdiff
@@ -344,7 +344,7 @@ def gen_freqlist(mydir, langcodes=None, maxdiff=1000, mindiff=0):
     myvocab = refine_vocab(myvocab, lemmadata)
 
     # determine bins
-    bins = calculate_bins(oldestday, newestday)
+    bins = calculate_bins(oldestday, newestday, interval)
     if not bins:
         print('Not enough days to compute frequencies')
         return freqs
