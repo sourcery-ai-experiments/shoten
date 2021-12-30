@@ -16,8 +16,10 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from simplemma import is_known, lemmatize
 
+from .datatypes import MAX_NGRAM_VOC, MAX_SERIES_VAL
 
-MAX_NGRAM_VOC = 15000
+
+
 
 RE_FILTER = re.compile(r'[^\W\d\.-]')
 
@@ -312,7 +314,7 @@ def longtermfilter(myvocab, filename, mustexist=False, startday=1, interval=7):
             if day in mydays
         )
         # compare with maximum possible value
-        occurrences = min(65536, occurrences)
+        occurrences = min(MAX_SERIES_VAL, occurrences)
         # compute totals
         myvocab[word].absfreq = occurrences
         allfreqs += occurrences

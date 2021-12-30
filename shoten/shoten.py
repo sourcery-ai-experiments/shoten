@@ -19,25 +19,9 @@ from htmldate.utils import load_html  #, sanitize
 
 import _pickle as cpickle
 
+from .datatypes import ARRAY_TYPE, Entry, MAX_SERIES_VAL, TODAY
 from .filters import combined_filters, is_relevant_input
 
-
-TODAY = datetime.today()
-
-
-class Entry:
-    "Defines a class for dictionaries entries, containing metadata and stats."
-    __slots__ = ['absfreq', 'headings', 'mean', 'series_abs', 'series_rel', 'sources', 'stddev', 'time_series', 'total']
-    def __init__(self):
-        self.absfreq: int
-        self.headings: bool = False
-        self.mean: float
-        self.series_abs = array('f')
-        self.series_rel = array('f')
-        self.sources = Counter()
-        self.stddev: float
-        self.time_series = array('H')
-        self.total: int
 
 
 def find_files(dirname):
@@ -257,7 +241,7 @@ def refine_frequencies(vocab, bins):
     deletions = []
     # remove occurrences that are out of bounds: no complete week
     for word in vocab:
-        new_series = array('H', [d for d in vocab[word].time_series if bins[-1] <= d < bins[0]])
+        new_series = array(ARRAY_TYPE, [d for d in vocab[word].time_series if bins[-1] <= d < bins[0]])
         if len(new_series) <= 1:
             deletions.append(word)
         else:
@@ -283,11 +267,11 @@ def compute_frequencies(vocab, bins):
                 total = sum(days[d] for d in days if bins[i-1] < d <= split)
             else:
                 total = sum(days[d] for d in days if d <= split)
-            # prevent OverflowError by array type 'H'
-            total = min(65536, total)
+            # prevent OverflowError according to array type
+            total = min(MAX_SERIES_VAL, total)
             freqseries.append(total)
             timeseries[i] += total
-        vocab[wordform].series_abs = array('H', reversed(freqseries))
+        vocab[wordform].series_abs = array(ARRAY_TYPE, reversed(freqseries))
         # spare memory
         del vocab[wordform].time_series
     return vocab, list(reversed(timeseries))
