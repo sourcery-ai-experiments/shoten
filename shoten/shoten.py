@@ -283,10 +283,10 @@ def compute_frequencies(vocab, bins):
                 total = sum(days[d] for d in days if bins[i-1] < d <= split)
             else:
                 total = sum(days[d] for d in days if d <= split)
+            # prevent OverflowError by array type 'H'
+            total = min(65536, total)
             freqseries.append(total)
             timeseries[i] += total
-        # prevent OverflowError: 65535
-        freqseries = [min(65536, f) for f in freqseries]
         vocab[wordform].series_abs = array('H', reversed(freqseries))
         # spare memory
         del vocab[wordform].time_series
