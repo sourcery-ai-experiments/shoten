@@ -7,9 +7,11 @@ import pickle
 
 from array import array
 from collections import Counter, defaultdict
+from concurrent.futures import as_completed, ThreadPoolExecutor
 from datetime import datetime
-from os import path, walk  # cpu_count
+from os import cpu_count, path, walk  # cpu_count
 from pathlib import Path
+from threading import RLock
 
 import numpy as np
 
@@ -22,6 +24,8 @@ import _pickle as cpickle
 from .datatypes import ARRAY_TYPE, Entry, MAX_SERIES_VAL, TODAY
 from .filters import combined_filters, is_relevant_input
 
+
+LOCK = RLock()
 
 
 def find_files(dirname):
@@ -172,9 +176,12 @@ def gen_wordlist(mydir, langcodes=None, maxdiff=1000, authorregex=None, lemmafil
     # load language data
     lemmadata = load_data(*langcodes)
     # read files
-    for filepath in find_files(mydir):
-        for token, timediff, source, inheadings in read_file(filepath, maxdiff, authorregex):
-            myvocab = putinvocab(myvocab, token, timediff, source, inheadings)
+    with ThreadPoolExecutor(max_workers=min(cpu_count(), 16)) as executor:
+        file_tasks = {executor.submit(read_file, f, maxdiff=maxdiff, authorregex=authorregex): f for f in find_files(mydir)}
+        for future in as_completed(file_tasks):
+            for token, timediff, source, inheadings in future.result():
+                with LOCK:
+                    myvocab = putinvocab(myvocab, token, timediff, source, inheadings)
     # post-processing
     myvocab = refine_vocab(myvocab, lemmadata, lemmafilter)
     return convert_to_numpy(myvocab)
