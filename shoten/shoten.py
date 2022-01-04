@@ -251,9 +251,19 @@ def apply_filters(myvocab, setting='normal'):
         print(wordform)
 
 
-def calculate_bins(oldestday, newestday, interval=7):
+def calculate_bins(myvocab, interval=7, maxdiff=1000):
     "Calculate time frame bins to fit the data (usually weeks)."
-    return [d for d in range(oldestday, newestday - 1, -1) if oldestday - d >= interval and d % interval == 0]
+    # init
+    oldest, newest = 0, maxdiff
+    # iterate over vocabulary to find bounds
+    for word in myvocab:
+        mindiff, maxdiff = min(myvocab[word].time_series), max(myvocab[word].time_series)
+        if maxdiff > oldest:
+            oldest = maxdiff
+        elif mindiff < newest:
+            newest = mindiff
+    # return bins corresponding to boundaries and interval
+    return [d for d in range(oldest, newest - 1, -1) if oldest - d >= interval and d % interval == 0]
 
 
 def refine_frequencies(vocab, bins):
@@ -321,14 +331,7 @@ def gen_freqlist(mydir, *, langcodes=None, maxdiff=1000, mindiff=0, interval=7, 
     myvocab = gen_wordlist(mydir, langcodes=langcodes, maxdiff=maxdiff, mindiff=mindiff, authorregex=None, lemmafilter=False, threads=threads)
 
     # determine bins
-    oldestday, newestday = 0, maxdiff
-    for word in myvocab:
-        mindiff, maxdiff = min(myvocab[word].time_series), max(myvocab[word].time_series)
-        if maxdiff > oldestday:
-            oldestday = maxdiff
-        elif mindiff < newestday:
-            newestday = mindiff
-    bins = calculate_bins(oldestday, newestday, interval)
+    bins = calculate_bins(myvocab, interval=interval, maxdiff=maxdiff)
     if not bins:
         print('Not enough days to compute frequencies')
         return {}

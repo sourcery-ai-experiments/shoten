@@ -127,7 +127,7 @@ def test_internals():
         'Tal': ToEntry({'time_series': array('H', [newestday, oldestday])}),
         'Zebra': ToEntry({'time_series': array('H', [10])})
     }
-    bins = calculate_bins(oldestday, newestday)
+    bins = calculate_bins(myvocab, interval=7)
     assert bins == [14, 7]
     myvocab = refine_frequencies(myvocab, bins)
     assert 'Berg' in myvocab and 'Tal' not in myvocab and 'Zebra' not in myvocab
