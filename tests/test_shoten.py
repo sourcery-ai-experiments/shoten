@@ -51,6 +51,9 @@ def test_basics():
     # generate from XML file
     myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir' / 'test2'), langcodes=('de'))
     assert len(myvocab) == 1 and 'Telegram' in myvocab
+    # single- vs. multi-threaded
+    assert gen_wordlist(str(Path(__file__).parent / 'testdir'), langcodes=('de'), threads=1).keys() == gen_wordlist(str(Path(__file__).parent / 'testdir'), langcodes=('de'), threads=3).keys()
+    # generate list
     myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), langcodes=('de', 'en'))
     assert 'Messengerdienst' in myvocab
     # without language codes and with short time frame

@@ -166,7 +166,7 @@ def read_file(filepath, maxdiff=1000, authorregex=None):
             yield token, timediff, source, token in headwords
 
 
-def gen_wordlist(mydir, langcodes=None, maxdiff=1000, authorregex=None, lemmafilter=False):
+def gen_wordlist(mydir, langcodes=None, maxdiff=1000, authorregex=None, lemmafilter=False, threads=min(cpu_count(), 16)):
     """Generate a list of occurrences (tokens or lemmatas) from an input directory
        containing XML-TEI files."""
     # init
@@ -176,7 +176,13 @@ def gen_wordlist(mydir, langcodes=None, maxdiff=1000, authorregex=None, lemmafil
     # load language data
     lemmadata = load_data(*langcodes)
     # read files
-    with ThreadPoolExecutor(max_workers=min(cpu_count(), 16)) as executor:
+    # legacy code
+    if threads == 1:
+        for filepath in find_files(mydir):
+            for token, timediff, source, inheadings in read_file(filepath, maxdiff, authorregex):
+                myvocab = putinvocab(myvocab, token, timediff, source, inheadings)
+    # multi-threaded code
+    with ThreadPoolExecutor(max_workers=threads) as executor:
         file_tasks = {executor.submit(read_file, f, maxdiff=maxdiff, authorregex=authorregex): f for f in find_files(mydir)}
         for future in as_completed(file_tasks):
             for token, timediff, source, inheadings in future.result():
