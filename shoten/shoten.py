@@ -184,8 +184,8 @@ def gen_wordlist(mydir, *, langcodes=None, maxdiff=1000, mindiff=0, authorregex=
     # read files
     # legacy code
     if threads == 1:
-        for filepath in find_files(mydir):
-            for token, timediff, source, head in readfunc(filepath):
+        for f in find_files(mydir):
+            for token, timediff, source, head in readfunc(f):
                 myvocab = putinvocab(myvocab, token, timediff, source=source, inheadings=head)
     # multi-threaded code
     else:
@@ -258,13 +258,10 @@ def calculate_bins(myvocab, interval=7, maxdiff=1000):
     oldest, newest = 0, maxdiff
     # iterate over vocabulary to find bounds
     for word in myvocab:
-        mindiff, maxdiff = np.min(myvocab[word].time_series), np.max(myvocab[word].time_series)
-        if maxdiff > oldest:
-            oldest = maxdiff
-        elif mindiff < newest:
-            newest = mindiff
+        oldest = max(oldest, np.max(myvocab[word].time_series))
+        newest = min(newest, np.min(myvocab[word].time_series))
     # return bins corresponding to boundaries and interval
-    return [d for d in range(oldest, newest - 1, -1) if oldest - d >= interval and d % interval == 0]
+    return [d for d in range(oldest, newest, -1) if d % interval == 0 and oldest - d >= interval]
 
 
 def refine_frequencies(vocab, bins):
@@ -286,26 +283,44 @@ def refine_frequencies(vocab, bins):
 def compute_frequencies(vocab, bins):
     "Compute absolute frequencies of words."
     timeseries = [0] * len(bins)
+    # necessary for old code to work
+    oldestday = max(bins) + 6
+    newestday = min(bins) - 6
     # frequency computations
     freqsum = sum(len(vocab[l].time_series) for l in vocab)
     for wordform in vocab:
+        freqseries = []
         # parts per million
         vocab[wordform].total = float('{0:.3f}'.format((len(vocab[wordform].time_series) / freqsum)*1000000))
-        freqseries = []
-        days = Counter(vocab[wordform].time_series)
-        for i, split in enumerate(bins):
-            if i != 0:
-                total = sum(days[d] for d in days if bins[i-1] < d <= split)
-            else:
-                total = sum(days[d] for d in days if d <= split)
-            # prevent OverflowError according to array type
-            total = min(MAX_SERIES_VAL, total)
-            freqseries.append(total)
-            timeseries[i] += total
-        vocab[wordform].series_abs = array(ARRAY_TYPE, reversed(freqseries))
+        ## OLD code
+        mysum = 0
+        mydays = Counter(vocab[wordform].time_series)
+        for day in range(oldestday, newestday, -1):
+            if day in mydays:
+                mysum += mydays[day]
+            if day % 7 == 0:
+                # prevent OverflowError according to array type
+                freqseries.append(min(MAX_SERIES_VAL, mysum))
+                mysum = 0
+        vocab[wordform].series_abs = array(ARRAY_TYPE, freqseries)
+        for i in range(len(bins)):
+            timeseries[i] += vocab[wordform].series_abs[i]
+        ## NEW code: problem here
+        #days = Counter(vocab[wordform].time_series)
+        #for i, split in enumerate(bins):
+        #    if i != 0:
+        #        total = sum(days[d] for d in days if bins[i-1] < d <= split)
+        #    else:
+        #        total = sum(days[d] for d in days if d <= split)
+        #    # prevent OverflowError according to array type
+        #    total = min(MAX_SERIES_VAL, total)
+        #    freqseries.append(total)
+        #    timeseries[i] += total
+        #vocab[wordform].series_abs = array(ARRAY_TYPE, reversed(freqseries))
+        ## WRAP UP
         # spare memory
         del vocab[wordform].time_series
-    return vocab, list(reversed(timeseries))
+    return vocab, timeseries  # new code: list(reversed(timeseries)) ??
 
 
 def combine_frequencies(vocab, bins, timeseries):
