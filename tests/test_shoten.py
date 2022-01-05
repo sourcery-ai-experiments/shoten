@@ -89,7 +89,7 @@ def test_internals():
 
     # store in vocabulary
     myvocab = {}
-    myvocab = putinvocab(myvocab, 'Berge', 5, 'Source_0', inheadings=True)
+    myvocab = putinvocab(myvocab, 'Berge', 5, source='Source_0', inheadings=True)
     assert 'Berge' in myvocab and myvocab['Berge'].time_series == array('H', [5]) and myvocab['Berge'].headings is True
 
     # de-hyphening

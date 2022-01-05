@@ -6,7 +6,7 @@ import gzip
 import pickle
 
 from array import array
-from collections import Counter, defaultdict
+from collections import Counter
 from concurrent.futures import as_completed, ThreadPoolExecutor
 from datetime import datetime
 from functools import partial
@@ -15,12 +15,11 @@ from pathlib import Path
 from threading import RLock
 
 import numpy as np
+import _pickle as cpickle
 
 from courlan import extract_domain
 from simplemma import load_data, lemmatize, simple_tokenizer, is_known
 from htmldate.utils import load_html  #, sanitize
-
-import _pickle as cpickle
 
 from .datatypes import ARRAY_TYPE, Entry, MAX_SERIES_VAL, TODAY
 from .filters import combined_filters, is_relevant_input
@@ -57,7 +56,7 @@ def filter_lemmaform(token, lemmadata, lemmafilter=True):
         return token
 
 
-def putinvocab(myvocab, wordform, timediff, source, inheadings=False):
+def putinvocab(myvocab, wordform, timediff, *, source=None, inheadings=False):
     "Store the word form in the vocabulary or add a new occurrence to it."
     if wordform not in myvocab:
         myvocab[wordform] = Entry()
@@ -172,12 +171,12 @@ def read_file(filepath, *, maxdiff=1000, mindiff=0, authorregex=None, details=Tr
             yield token, timediff, source, token in headwords
 
 
-def gen_wordlist(mydir, *, langcodes=None, maxdiff=1000, mindiff=0, authorregex=None, lemmafilter=False, threads=THREADNUM):
+def gen_wordlist(mydir, *, langcodes=None, maxdiff=1000, mindiff=0, authorregex=None, lemmafilter=False, details=True, threads=THREADNUM):
     """Generate a list of occurrences (tokens or lemmatas) from an input directory
        containing XML-TEI files."""
     # init
     myvocab = {}
-    readfunc = partial(read_file, maxdiff=maxdiff, mindiff=mindiff, authorregex=authorregex, details=False)
+    readfunc = partial(read_file, maxdiff=maxdiff, mindiff=mindiff, authorregex=authorregex, details=details)
     if langcodes is None:
         langcodes = []
     # load language data
@@ -186,15 +185,16 @@ def gen_wordlist(mydir, *, langcodes=None, maxdiff=1000, mindiff=0, authorregex=
     # legacy code
     if threads == 1:
         for filepath in find_files(mydir):
-            for token, timediff, source, inheadings in readfunc(filepath):
-                myvocab = putinvocab(myvocab, token, timediff, source, inheadings)
+            for token, timediff, source, head in readfunc(filepath):
+                myvocab = putinvocab(myvocab, token, timediff, source=source, inheadings=head)
     # multi-threaded code
-    with ThreadPoolExecutor(max_workers=threads) as executor:
-        file_tasks = {executor.submit(readfunc, f): f for f in find_files(mydir)}
-        for future in as_completed(file_tasks):
-            for token, timediff, source, inheadings in future.result():
-                with LOCK:
-                    myvocab = putinvocab(myvocab, token, timediff, source, inheadings)
+    else:
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            file_tasks = {executor.submit(readfunc, f): f for f in find_files(mydir)}
+            for future in as_completed(file_tasks):
+                for token, timediff, source, head in future.result():
+                    with LOCK:
+                        myvocab = putinvocab(myvocab, token, timediff, source=source, inheadings=head)
     # post-processing
     myvocab = refine_vocab(myvocab, lemmadata, lemmafilter)
     return convert_to_numpy(myvocab)
@@ -203,8 +203,9 @@ def gen_wordlist(mydir, *, langcodes=None, maxdiff=1000, mindiff=0, authorregex=
 def load_wordlist(myfile, langcodes=None, maxdiff=1000):
     """Load a pre-generated list of occurrences in TSV-format:
        token/lemma + TAB + date in YYYY-MM-DD format + TAB + source (optional)."""
+    # init
     filepath = str(Path(__file__).parent / myfile)
-    myvocab = defaultdict(list)
+    myvocab = {}
     if langcodes is None:
         langcodes = []
     # load language data
@@ -224,7 +225,7 @@ def load_wordlist(myfile, langcodes=None, maxdiff=1000):
             if timediff is None or timediff > maxdiff:
                 continue
             # skipping this: if is_relevant_input(token) is True
-            myvocab = putinvocab(myvocab, token, timediff, source)
+            myvocab = putinvocab(myvocab, token, timediff, source=source)
     # post-processing
     myvocab = refine_vocab(myvocab, lemmadata)
     return convert_to_numpy(myvocab)
@@ -257,7 +258,7 @@ def calculate_bins(myvocab, interval=7, maxdiff=1000):
     oldest, newest = 0, maxdiff
     # iterate over vocabulary to find bounds
     for word in myvocab:
-        mindiff, maxdiff = min(myvocab[word].time_series), max(myvocab[word].time_series)
+        mindiff, maxdiff = np.min(myvocab[word].time_series), np.max(myvocab[word].time_series)
         if maxdiff > oldest:
             oldest = maxdiff
         elif mindiff < newest:
@@ -328,7 +329,7 @@ def combine_frequencies(vocab, bins, timeseries):
 def gen_freqlist(mydir, *, langcodes=None, maxdiff=1000, mindiff=0, interval=7, threads=THREADNUM):
     "Compute long-term frequency info out of a directory containing text files."
     # read files
-    myvocab = gen_wordlist(mydir, langcodes=langcodes, maxdiff=maxdiff, mindiff=mindiff, authorregex=None, lemmafilter=False, threads=threads)
+    myvocab = gen_wordlist(mydir, langcodes=langcodes, maxdiff=maxdiff, mindiff=mindiff, authorregex=None, lemmafilter=False, details=False, threads=threads)
 
     # determine bins
     bins = calculate_bins(myvocab, interval=interval, maxdiff=maxdiff)
