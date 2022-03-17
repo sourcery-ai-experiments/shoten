@@ -15,6 +15,9 @@ Shoten
     :target: https://codecov.io/gh/adbar/shoten
     :alt: Code Coverage
 
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.6365800.svg
+   :target: https://doi.org/10.5281/zenodo.6365800
+
 
 Helper functions to find word trends (i.e. extract tokens, lemmatize and filter).
 
