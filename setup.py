@@ -1,8 +1,20 @@
-#!/usr/bin/env python
+"""
+Helper functions to find word trends.
+https://github.com/adbar/shoten
+"""
 
-"""The setup script."""
 
+import re
+
+from pathlib import Path
 from setuptools import setup, find_packages
+
+
+def get_version(package):
+    "Return package version as listed in `__version__` in `init.py`"
+    package_metadata = Path(package, '__init__.py').read_text()
+    return re.search('__version__ = [\'"]([^\'"]+)[\'"]', package_metadata).group(1)
+
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
@@ -12,9 +24,9 @@ with open('README.rst') as readme_file:
 
 requirements = [
                    'numpy',
-                   'scikit-learn >= 0.24',
+                   'scikit-learn >= 0.24.2',
                    'simplemma >= 0.5.0',
-                   'htmldate >= 1.0.0',
+                   'htmldate >= 1.2.0',
                    'courlan >= 0.6.0',
                ]
 
@@ -59,6 +71,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/adbar/shoten',
-    version='0.1.0',
+    version=get_version('shoten'),
     zip_safe=False,
 )

@@ -1,6 +1,8 @@
 """Module listing data classes, types and constants used by shoten."""
 
 
+#from __future__ import annotations
+
 from array import array
 from collections import Counter
 from datetime import datetime
