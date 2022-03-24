@@ -194,8 +194,6 @@ def freshness_filter(myvocab, percentage=10):
         if oldnessindex < datethreshold:
             #if oldnessindex < np.percentile(myvocab[token].time_series, percentage):
             #    continue
-            thresh = myvocab[token].time_series.shape[0]*(percentage/100)
-            freshnessindex = np.sum(myvocab[token].time_series[-ceil(thresh):])
             if freshnessindex < np.percentile(myvocab[token].time_series, percentage):
                 deletions.append(token)
             # print(myvocab[token], freshnessindex, oldnessindex, token)
