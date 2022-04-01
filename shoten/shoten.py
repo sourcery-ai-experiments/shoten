@@ -72,8 +72,8 @@ def prune_vocab(myvocab, first, second):
     "Append characteristics of wordform to be deleted to an other one."
     if second not in myvocab:
         myvocab[second] = Entry()
-    myvocab[second].time_series = myvocab[second].time_series + myvocab[first].time_series
     try:
+        myvocab[second].time_series = myvocab[second].time_series + myvocab[first].time_series
         myvocab[second].sources = sum((myvocab[second].sources, myvocab[first].sources), Counter())
         if myvocab[first].headings is True:
             myvocab[second].headings = True

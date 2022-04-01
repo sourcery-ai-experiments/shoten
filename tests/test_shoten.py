@@ -14,11 +14,12 @@ from unittest.mock import patch
 
 import pytest
 
-from shoten import *
-from shoten.cli import parse_args, process_args
-from shoten.filters import *
-
 from simplemma import load_data
+
+from shoten import apply_filters, calc_timediff, calculate_bins, combine_frequencies, compute_frequencies, convert_to_numpy, dehyphen_vocab, filter_lemmaform, gen_freqlist, gen_wordlist, load_wordlist, pickle_wordinfo, putinvocab, prune_vocab, refine_frequencies, refine_vocab, store_freqlist, unpickle_wordinfo
+from shoten.cli import main, parse_args, process_args
+from shoten.datatypes import Entry
+from shoten.filters import combined_filters, frequency_filter, headings_filter, hyphenated_filter, is_relevant_input, ngram_filter, recognized_by_simplemma, scoring_func, shortness_filter, sources_filter, sources_freqfilter, wordlist_filter, zipf_filter  # oldest_filter, store_results
 
 
 DE_LEMMADATA = load_data('de')
@@ -44,7 +45,7 @@ def test_basics():
     assert len(myvocab) == 3
     assert myvocab['Other'].sources == Counter({'Source1': 1})
     # pickling and unpickling
-    os_handle, filepath = tempfile.mkstemp(suffix='.pickle', text=True)
+    _, filepath = tempfile.mkstemp(suffix='.pickle', text=True)
     pickle_wordinfo(myvocab, filepath)
     myvocab2 = unpickle_wordinfo(filepath)
     assert len(myvocab2) == len(myvocab) and myvocab2['Tests'].time_series.all() == myvocab['Tests'].time_series.all()
@@ -69,11 +70,14 @@ def test_basics():
     # test frequency calculations
     assert gen_freqlist(str(Path(__file__).parent / 'testdir')) == {}
     assert gen_freqlist(str(Path(__file__).parent / 'testdir'), langcodes=['en']) == {}
+    result = gen_freqlist(str(Path(__file__).parent / 'testdir'), langcodes=('de', 'en'), maxdiff=10000, mindiff=0, interval=7)
+    # bins present but not enough data
+    assert result == {}
+    # write to temp file
     mydict = {
         'Test': ToEntry({'total': 20, 'mean': 10, 'stddev': 0, 'series_rel': [10, 10]})
     }
-    # write to temp file
-    os_handle, temp_outputfile = tempfile.mkstemp(suffix='.tsv', text=True)
+    _, temp_outputfile = tempfile.mkstemp(suffix='.tsv', text=True)
     result = store_freqlist(mydict, temp_outputfile)
     assert result is None
     mydict['Test2'] = ToEntry({'total': 10, 'mean': 5, 'stddev': 4.082, 'series_rel': [10, 5, 0]})
@@ -97,6 +101,10 @@ def test_internals():
         'de-hyphening': ToEntry({'time_series': array('H', [1, 2, 3]), 'sources': Counter(['source1']), 'headings': True}),
         'dehyphening': ToEntry({'time_series': array('H', [3, 4]), 'sources': Counter(['source2']), 'headings': False})
     }
+    # missing component
+    newvocab = prune_vocab(deepcopy(myvocab), 'de-hyphen', 'dehyphen')
+    assert 'dehyphen' in newvocab
+    # merge operation
     newvocab = prune_vocab(deepcopy(myvocab), 'de-hyphening', 'dehyphening')
     assert len(newvocab['dehyphening'].time_series) == 5
     assert newvocab['dehyphening'].headings is True
@@ -144,7 +152,7 @@ def test_internals():
 
 def test_cli():
     """Basic tests for command-line interface."""
-    mydir = str(Path(__file__).parent / 'testdir')
+    mydir = str(Path(__file__).parent / 'testdir' / 'test')
     testargs = ['', '--read-dir', mydir, '-l', 'de', '--filter-level', 'loose']
     with patch.object(sys, 'argv', testargs):
         args = parse_args(testargs)
@@ -152,8 +160,7 @@ def test_cli():
     myfile = str(Path(__file__).parent / 'testdir' / 'wordlist.tsv')
     testargs = ['', '--read-file', myfile, '-l', 'de', '--verbose']
     with patch.object(sys, 'argv', testargs):
-        args = parse_args(testargs)
-    process_args(args)
+        main()
 
 
 def test_filters():
@@ -179,16 +186,26 @@ def test_filters():
     assert newvocab == {}
 
     # filters
-    newvocab = sources_freqfilter(deepcopy(myvocab))
-    assert len(newvocab) == 2
-    newvocab = shortness_filter(deepcopy(newvocab))
-    assert len(newvocab) == 1
+    # sources
     newvocab = sources_filter(deepcopy(myvocab), Counter(['Source1']))
     assert len(newvocab) == 1
+    newvocab = sources_freqfilter(deepcopy(myvocab), balanced=False)
+    assert len(newvocab) == 2
+    newvocab = sources_freqfilter(deepcopy(myvocab), balanced=True)
+    assert len(newvocab) == 2
+    # morpho
+    newvocab = shortness_filter(deepcopy(newvocab))
+    assert len(newvocab) == 1
+    # frequency
+    newvocab = frequency_filter(deepcopy(myvocab))
+    assert len(newvocab) == 2
+    # list
     newvocab = wordlist_filter(deepcopy(myvocab), ['Tests', 'Other'], keep_words=False)
     assert len(newvocab) == 1
     newvocab = wordlist_filter(deepcopy(myvocab), ['Tests', 'Other'], keep_words=True)
     assert len(newvocab) == 2
+    # age
+    # newvocab = oldest_filter(deepcopy(myvocab))
 
     # scoring function
     scores = {}
@@ -205,7 +222,7 @@ def test_filters():
         'stuff': ToEntry({'time_series': array('H', [3, 3, 3, 3, 3])})
     }
     myvocab = convert_to_numpy(myvocab)
-    newvocab = hyphenated_filter(myvocab, perc=0, verbose=False)
+    newvocab = hyphenated_filter(myvocab, perc=0, verbose=True)
     assert list(newvocab.keys()) == ['de-hyphening', 'stuff']
 
     # zipf
@@ -232,6 +249,11 @@ def test_filters():
     assert len(myvocab) == 1
 
     # n-grams
+    # too large
+    myvocab = dict.fromkeys(['abc_' + str(x) for x in range(30000)])
+    newvocab = ngram_filter(myvocab, threshold=50, verbose=True)
+    assert newvocab == myvocab
+    # plausible test
     myvocab = dict.fromkeys(['Berg', 'Berge', 'Bergen', 'Berger', 'Bernstein', 'Tal', 'Täler'])
     newvocab = ngram_filter(deepcopy(myvocab), threshold=50, verbose=True)
     assert list(newvocab.keys()) == ['Berg', 'Berge', 'Berger', 'Bernstein', 'Tal']
