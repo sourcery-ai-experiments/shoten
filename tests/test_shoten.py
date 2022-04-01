@@ -68,7 +68,7 @@ def test_basics():
     myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), authorregex=myregex)
     assert 'Messengerdienst' not in myvocab
     # test frequency calculations
-    assert gen_freqlist(str(Path(__file__).parent / 'testdir')) == {}
+    assert gen_freqlist(str(Path(__file__).parent / 'testdir' / 'test2')) == {}
     assert gen_freqlist(str(Path(__file__).parent / 'testdir'), langcodes=['en']) == {}
     result = gen_freqlist(str(Path(__file__).parent / 'testdir'), langcodes=('de', 'en'), maxdiff=10000, mindiff=0, interval=7)
     # bins present but not enough data
@@ -122,7 +122,9 @@ def test_internals():
 
     # filter levels
     newvocab = convert_to_numpy(newvocab)
-    apply_filters(deepcopy(newvocab))
+    # defaults to normal
+    apply_filters(deepcopy(newvocab), 'unknown')
+    # chained
     apply_filters(newvocab, setting='loose')
     with pytest.raises(ZeroDivisionError):
         apply_filters(newvocab, setting='strict')
@@ -177,9 +179,10 @@ def test_filters():
     assert is_relevant_input('testing')
     assert is_relevant_input('testing.')
     assert not is_relevant_input('')
-    assert not is_relevant_input('123')
+    assert not is_relevant_input('123.')
     assert not is_relevant_input('abcde12345')
     assert not is_relevant_input('ABCDEF')
+    assert not is_relevant_input(',,,,,,')
 
     # lemmata
     newvocab = recognized_by_simplemma(deepcopy(myvocab), DE_LEMMADATA)
