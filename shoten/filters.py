@@ -71,8 +71,18 @@ def is_relevant_input(token):
     token = token.rstrip(string.punctuation)
     if len(token) == 0 or token.isnumeric() or not RE_FILTER.search(token):
         return False
-    if sum(map(str.isupper, token)) > 4 or sum(map(str.isdigit, token)) > 4:
-        return False
+    num_upper, num_digit = 0, 0
+    for char in token:
+        if char.isupper():
+            num_upper += 1
+            if num_upper > 4:
+                return False
+        elif char.isdigit():
+            num_digit += 1
+            if num_digit > 4:
+                return False
+    #if sum(map(str.isupper, token)) > 4 or sum(map(str.isdigit, token)) > 4:
+    #    return False
     return True
 
 
@@ -217,7 +227,7 @@ def sources_freqfilter(myvocab, threshold=2, balanced=True):
             continue
         # distribution of sources
         if balanced is True:
-            values = [t[1] for t in myvocab[word].sources.most_common()]
+            values = [t[1] for t in Counter(myvocab[word].sources).most_common()]
             # first value too present compared to the rest
             if values[0] >= 4*values[1]: # (sum(values)/len(values)):
                 deletions.append(word)

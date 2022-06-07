@@ -4,7 +4,7 @@
 #from __future__ import annotations
 
 from array import array
-from collections import Counter
+from collections import defaultdict  # Counter
 from datetime import datetime
 
 
@@ -26,7 +26,7 @@ class Entry:
         self.mean: float
         self.series_abs = array('f')
         self.series_rel = array('f')
-        self.sources = Counter()
+        self.sources = defaultdict(int)
         self.stddev: float
         self.time_series = array(ARRAY_TYPE)
         self.total: int

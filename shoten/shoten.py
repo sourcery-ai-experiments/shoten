@@ -62,7 +62,8 @@ def putinvocab(myvocab, wordform, timediff, *, source=None, inheadings=False):
         myvocab[wordform] = Entry()
     myvocab[wordform].time_series.append(timediff)
     if source is not None and len(source) > 0:
-        myvocab[wordform].sources.update([source])
+        # slower: myvocab[wordform].sources.update(source)
+        myvocab[wordform].sources[source] += 1
     if inheadings is True:
         myvocab[wordform].headings = True
     return myvocab
@@ -74,7 +75,9 @@ def prune_vocab(myvocab, first, second):
         myvocab[second] = Entry()
     try:
         myvocab[second].time_series = myvocab[second].time_series + myvocab[first].time_series
-        myvocab[second].sources = sum((myvocab[second].sources, myvocab[first].sources), Counter())
+        # slower: myvocab[second].sources = sum((myvocab[second].sources, myvocab[first].sources), Counter())
+        x, y = myvocab[second].sources, myvocab[first].sources
+        myvocab[second].sources = {k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y)}
         if myvocab[first].headings is True:
             myvocab[second].headings = True
     # additional info potentially not present
