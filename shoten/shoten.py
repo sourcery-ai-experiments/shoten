@@ -18,7 +18,7 @@ import numpy as np
 import _pickle as cpickle
 
 from courlan import extract_domain
-from simplemma import load_data, lemmatize, simple_tokenizer, is_known
+from simplemma import lemmatize, simple_tokenizer, is_known
 from htmldate.utils import load_html  #, sanitize
 
 from .datatypes import ARRAY_TYPE, Entry, MAX_SERIES_VAL, TODAY
@@ -44,14 +44,14 @@ def calc_timediff(mydate):
     return (TODAY - thisday).days
 
 
-def filter_lemmaform(token, lemmadata, lemmafilter=True):
+def filter_lemmaform(token, lang=('de', 'en'), lemmafilter=True):
     "Determine if the token is to be processed and try to lemmatize it."
     # potential new words only
-    if lemmafilter is True and is_known(token, lemmadata) is True:
+    if lemmafilter is True and is_known(token, lang=lang) is True:
         return None
     # lemmatize
     try:
-        return lemmatize(token, lemmadata, greedy=True, silent=False)
+        return lemmatize(token, lang=lang, greedy=True, silent=False)
     except ValueError:
         return token
 
@@ -102,13 +102,13 @@ def dehyphen_vocab(vocab):
     return vocab
 
 
-def refine_vocab(myvocab, lemmadata, lemmafilter=False, dehyphenation=True):
+def refine_vocab(myvocab, lang=None, lemmafilter=False, dehyphenation=True):
     """Refine the word list, currently: lemmatize, regroup forms with/without hyphens,
        and convert time series to numpy array."""
-    if len(lemmadata) > 0:
+    if lang is not None:
         changes, deletions = [], []
         for token in myvocab:
-            lemma = filter_lemmaform(token, lemmadata, lemmafilter)
+            lemma = filter_lemmaform(token, lang=lang, lemmafilter=lemmafilter)
             ##if is_relevant_input(lemma) is True:
             if lemma is None:
                 deletions.append(token)
@@ -164,14 +164,14 @@ def read_file(filepath, *, maxdiff=1000, mindiff=0, authorregex=None, details=Tr
     # headings
     headwords = set()
     if details is True:
-        bow = [' '.join(h.itertext()) for h in mytree.xpath('//fw')]
+        bow = [' '.join(h.itertext()) for h in mytree.xpath('//fw|//head')]
         headwords = {t for t in simple_tokenizer(' '.join(bow)) if is_relevant_input(t)}
     # process
-    for token in simple_tokenizer(' '.join(mytree.xpath('//text')[0].itertext())):
+    for match in simple_tokenizer(' '.join(mytree.xpath('//text')[0].itertext()), iterate=True):
         # form and regex-based filter
-        if is_relevant_input(token) is True:
+        if is_relevant_input(match[0]) is True:
             # return tuple
-            yield token, timediff, source, token in headwords
+            yield match[0], timediff, source, match[0] in headwords
 
 
 def gen_wordlist(mydir, *, langcodes=None, maxdiff=1000, mindiff=0, authorregex=None, lemmafilter=False, details=True, threads=THREADNUM):
@@ -181,9 +181,7 @@ def gen_wordlist(mydir, *, langcodes=None, maxdiff=1000, mindiff=0, authorregex=
     myvocab = {}
     readfunc = partial(read_file, maxdiff=maxdiff, mindiff=mindiff, authorregex=authorregex, details=details)
     if langcodes is None:
-        langcodes = []
-    # load language data
-    lemmadata = load_data(*langcodes)
+        langcodes = ()
     # read files
     # legacy code
     if threads == 1:
@@ -199,7 +197,7 @@ def gen_wordlist(mydir, *, langcodes=None, maxdiff=1000, mindiff=0, authorregex=
                     with LOCK:
                         myvocab = putinvocab(myvocab, token, timediff, source=source, inheadings=head)
     # post-processing
-    myvocab = refine_vocab(myvocab, lemmadata, lemmafilter)
+    myvocab = refine_vocab(myvocab, lang=langcodes, lemmafilter=lemmafilter)
     return convert_to_numpy(myvocab)
 
 
@@ -210,9 +208,7 @@ def load_wordlist(myfile, langcodes=None, maxdiff=1000):
     filepath = str(Path(__file__).parent / myfile)
     myvocab = {}
     if langcodes is None:
-        langcodes = []
-    # load language data
-    lemmadata = load_data(*langcodes)
+        langcodes = ()
     with open(filepath, 'r', encoding='utf-8') as filehandle:
         for line in filehandle:
             columns = line.strip().split('\t')
@@ -230,7 +226,7 @@ def load_wordlist(myfile, langcodes=None, maxdiff=1000):
             # skipping this: if is_relevant_input(token) is True
             myvocab = putinvocab(myvocab, token, timediff, source=source)
     # post-processing
-    myvocab = refine_vocab(myvocab, lemmadata)
+    myvocab = refine_vocab(myvocab, langcodes)
     return convert_to_numpy(myvocab)
 
 

@@ -24,9 +24,9 @@ readme = Path('README.rst').read_text()
 requirements = [
                    'numpy',
                    'scikit-learn >= 0.24.2',
-                   'simplemma >= 0.5.0',
-                   'htmldate >= 1.2.0',
-                   'courlan >= 0.6.0',
+                   'simplemma >= 0.7.0',
+                   'htmldate >= 1.2.3',
+                   'courlan >= 0.7.2',
                ]
 
 setup_requirements = []

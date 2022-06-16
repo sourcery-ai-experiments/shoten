@@ -95,16 +95,16 @@ def hapax_filter(myvocab, freqcount=2):
     return myvocab
 
 
-def recognized_by_simplemma(myvocab, lemmadata):
+def recognized_by_simplemma(myvocab, lang=None):
     'Run the simplemma lemmatizer to check if input is recognized.'
     old_len = len(myvocab)
-    for token in [t for t in myvocab if is_known(t, lemmadata)]:
+    for token in [t for t in myvocab if is_known(t, lang=lang)]:
         del myvocab[token]
     print_changes('known by simplemma', old_len, len(myvocab))
     deletions = []
     for word in myvocab:
         try:
-            lemmatize(word, lemmadata, greedy=True, silent=False)
+            lemmatize(word, lang=lang, greedy=True, silent=False)
         except ValueError:
             deletions.append(word)
     for token in deletions:
