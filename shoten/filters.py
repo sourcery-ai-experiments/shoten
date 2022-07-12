@@ -19,8 +19,6 @@ from simplemma import is_known, lemmatize
 from .datatypes import MAX_NGRAM_VOC, MAX_SERIES_VAL
 
 
-
-
 RE_FILTER = re.compile(r'[^\W\d\.-]')
 
 
@@ -28,7 +26,7 @@ RE_FILTER = re.compile(r'[^\W\d\.-]')
 def print_changes(phase, old_len, new_len):
     'Report on absolute and relative changes.'
     coeff = 100 - (new_len/old_len)*100
-    print(phase, 'removed', old_len - new_len, '%.1f' % coeff, '%')
+    print(f'{phase} removed {old_len - new_len} {coeff:.1f} %')
 
 
 def scoring_func(scores, value, newvocab):
@@ -305,7 +303,7 @@ def read_freqlist(filename):
             # unpack
             word, mean, stddev = row[0], float(row[2]), float(row[3])
             # limit
-            freqlimits[word] = float('{0:.3f}'.format(mean + 2*stddev))
+            freqlimits[word] = float(f'{mean + 2*stddev:.3f}')
     return freqlimits
 
 

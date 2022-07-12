@@ -290,7 +290,7 @@ def compute_frequencies(vocab, bins):
     for wordform in vocab:
         freqseries = []
         # parts per million
-        vocab[wordform].total = float('{0:.3f}'.format((len(vocab[wordform].time_series) / freqsum)*1000000))
+        vocab[wordform].total = float(f'{((len(vocab[wordform].time_series) / freqsum)*1000000):.3f}')
         ## OLD code
         mysum = 0
         mydays = Counter(vocab[wordform].time_series)
@@ -333,8 +333,8 @@ def combine_frequencies(vocab, bins, timeseries):
         # take non-zero values and perform calculations
         series = [f for f in vocab[wordform].series_rel if f != 0.0]
         # todo: skip if series too short
-        vocab[wordform].stddev = float('{0:.3f}'.format(np.std(series)))
-        vocab[wordform].mean = float('{0:.3f}'.format(np.mean(series)))
+        vocab[wordform].stddev = float(f'{np.std(series):.3f}')
+        vocab[wordform].mean = float(f'{np.mean(series):.3f}')
         # spare memory
         del vocab[wordform].series_abs
     return vocab
