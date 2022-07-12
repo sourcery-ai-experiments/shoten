@@ -2,6 +2,7 @@
 
 """Tests for `shoten` package."""
 
+import os
 import re
 import sys
 import tempfile
@@ -17,7 +18,7 @@ import pytest
 from shoten import apply_filters, calc_timediff, calculate_bins, combine_frequencies, compute_frequencies, convert_to_numpy, dehyphen_vocab, filter_lemmaform, gen_freqlist, gen_wordlist, load_wordlist, pickle_wordinfo, putinvocab, prune_vocab, refine_frequencies, refine_vocab, store_freqlist, unpickle_wordinfo
 from shoten.cli import main, parse_args, process_args
 from shoten.datatypes import Entry
-from shoten.filters import combined_filters, frequency_filter, headings_filter, hyphenated_filter, is_relevant_input, longtermfilter, ngram_filter, read_freqlist, recognized_by_simplemma, scoring_func, shortness_filter, sources_filter, sources_freqfilter, store_results, wordlist_filter, zipf_filter  # oldest_filter
+from shoten.filters import combined_filters, frequency_filter, headings_filter, hyphenated_filter, is_relevant_input, longtermfilter, ngram_filter, oldest_filter, read_freqlist, recognized_by_simplemma, scoring_func, shortness_filter, sources_filter, sources_freqfilter, store_results, wordlist_filter, zipf_filter
 
 
 # Turns a dictionary into a class
@@ -47,6 +48,9 @@ def test_basics():
     # generate from XML file
     myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir' / 'test2'), langcodes=('de'))
     assert len(myvocab) == 1 and 'Telegram' in myvocab
+    # write to file
+    _, temp_outputfile = tempfile.mkstemp(suffix='.tsv', text=True)
+    store_results(myvocab, temp_outputfile)
     # single- vs. multi-threaded
     assert gen_wordlist(str(Path(__file__).parent / 'testdir'), langcodes=('de'), threads=1).keys() == gen_wordlist(str(Path(__file__).parent / 'testdir'), langcodes=('de'), threads=3).keys()
     # generate list
@@ -66,8 +70,6 @@ def test_basics():
     assert gen_freqlist(str(Path(__file__).parent / 'testdir' / 'test2')) == {}
     assert gen_freqlist(str(Path(__file__).parent / 'testdir'), langcodes=('en')) == {}
     result = gen_freqlist(str(Path(__file__).parent / 'testdir'), langcodes=('de', 'en'), maxdiff=10000, mindiff=0, interval=7)
-    _, temp_outputfile = tempfile.mkstemp(suffix='.tsv', text=True)
-    store_results(result, temp_outputfile)
     # bins present but not enough data
     assert result == {}
     # write to temp file
@@ -79,11 +81,12 @@ def test_basics():
     mydict['Test2'] = ToEntry({'total': 10, 'mean': 5, 'stddev': 4.082, 'series_rel': [10, 5, 0]})
     store_freqlist(mydict, temp_outputfile)
     # load from file
-    freqs = read_freqlist(temp_outputfile)
-    assert freqs == {'Test2': 13.164}
-    # long term filter
-    myvocab = longtermfilter(deepcopy(myvocab), temp_outputfile)
-    assert len(myvocab) == 1
+    if os.name != "nt":  # Linux and MacOS only
+        freqs = read_freqlist(temp_outputfile)
+        assert freqs == {'Test2': 13.164}
+        # long term filter
+        myvocab = longtermfilter(deepcopy(myvocab), temp_outputfile)
+        assert len(myvocab) == 1
 
 
 def test_internals():
@@ -202,9 +205,10 @@ def test_filters():
     assert len(newvocab) == 2
     newvocab['Tests'].sources = {'Source1': 2, 'Source2': 25}
     newvocab['Vaccines'].sources = {'Source1': 2, 'Source2': 3}
-    newvocab = sources_freqfilter(newvocab, balanced=True)
-    assert len(newvocab) == 1
+    result = sources_freqfilter(deepcopy(newvocab), balanced=True)
+    assert len(result) == 1
     # morpho
+    assert len(newvocab) == 2
     newvocab = shortness_filter(deepcopy(newvocab))
     assert len(newvocab) == 1
     # frequency
@@ -216,7 +220,9 @@ def test_filters():
     newvocab = wordlist_filter(deepcopy(myvocab), ['Tests', 'Other'], keep_words=True)
     assert len(newvocab) == 2
     # age
-    # newvocab = oldest_filter(deepcopy(myvocab))
+    assert len(myvocab) == 3
+    temp_result = oldest_filter(deepcopy(myvocab))
+    assert len(temp_result) == 2
 
     # scoring function
     scores = {}
