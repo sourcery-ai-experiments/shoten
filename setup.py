@@ -22,11 +22,11 @@ readme = Path('README.rst').read_text()
 #    history = history_file.read()
 
 requirements = [
+                   'courlan >= 0.8.1',
+                   'lxml >= 4.6.4',
                    'numpy',
                    'scikit-learn >= 0.24.2',
                    'simplemma >= 0.7.0',
-                   'htmldate >= 1.2.3',
-                   'courlan >= 0.7.2',
                ]
 
 setup_requirements = []

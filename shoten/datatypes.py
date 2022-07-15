@@ -8,7 +8,7 @@ from collections import defaultdict  # Counter
 from datetime import datetime
 
 
-TODAY = datetime.today()
+TODAY = datetime.now()
 
 
 ARRAY_TYPE = 'H'

@@ -47,7 +47,7 @@ def test_basics():
     assert len(myvocab2) == len(myvocab) and myvocab2['Tests'].time_series.all() == myvocab['Tests'].time_series.all()
     # generate from XML file
     myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir' / 'test2'), langcodes=('de'))
-    assert len(myvocab) == 1 and 'Telegram' in myvocab
+    assert len(myvocab) == 1 and 'Telegram' in myvocab and myvocab['Telegram'].sources['horizont.at'] == 1
     # write to file
     _, temp_outputfile = tempfile.mkstemp(suffix='.tsv', text=True)
     store_results(myvocab, temp_outputfile)

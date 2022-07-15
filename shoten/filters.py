@@ -6,6 +6,7 @@ import re
 import string
 
 from collections import Counter
+from functools import lru_cache
 #from copy import deepcopy
 from math import ceil
 
@@ -61,6 +62,7 @@ def combined_filters(myvocab, setting):
     return myvocab
 
 
+@lru_cache(maxsize=1048576)
 def is_relevant_input(token):
     'Determine if the given token is to be considered relevant for further processing.'
     # apply filter first
@@ -79,8 +81,6 @@ def is_relevant_input(token):
             num_digit += 1
             if num_digit > 4:
                 return False
-    #if sum(map(str.isupper, token)) > 4 or sum(map(str.isdigit, token)) > 4:
-    #    return False
     return True
 
 
