@@ -29,6 +29,7 @@ LOCK = RLock()
 THREADNUM = min(cpu_count(), 16)
 NSPACE = {"tei": "http://www.tei-c.org/ns/1.0"}
 
+
 def find_files(dirname):
     "Search a directory for files."
     for thepath, _, files in walk(dirname):
@@ -55,6 +56,10 @@ def filter_lemmaform(token, lang=('de', 'en'), lemmafilter=True):
         return lemmatize(token, lang=lang, greedy=True, silent=False)
     except ValueError:
         return token
+    # log this error
+    except TypeError as err:
+        print('#', token, '--', err)
+        return None
 
 
 def putinvocab(myvocab, wordform, timediff, *, source=None, inheadings=False):
