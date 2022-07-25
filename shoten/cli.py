@@ -3,12 +3,14 @@
 import argparse
 import sys
 
+from typing import Any
+
 from .shoten import gen_wordlist, load_wordlist
 from .filters import combined_filters
 
 
 
-def parse_args(args):
+def parse_args(args: Any) -> Any:
     'Parse and return CLI arguments.'
     parser = argparse.ArgumentParser(description='Command-line interface for Shoten')
     parser.add_argument("-f", "--read-file",
@@ -32,7 +34,7 @@ def parse_args(args):
     return parser.parse_args()
 
 
-def process_args(args):
+def process_args(args: Any) -> None:
     'Process input according to CLI arguments.'
     if args.read_file:
         myvocab = load_wordlist(args.read_file, langcodes=tuple(args.language))
@@ -49,7 +51,7 @@ def process_args(args):
             print(wordform)
 
 
-def main():
+def main() -> None:
     """ Run as a command-line utility. """
     args = parse_args(sys.argv[1:])
     process_args(args)

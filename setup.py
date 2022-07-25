@@ -25,6 +25,7 @@ requirements = [
                    'courlan >= 0.8.1',
                    'lxml >= 4.6.4',
                    'numpy',
+                   'nptyping; python_version < "3.7"',
                    'scikit-learn >= 0.24.2',
                    'simplemma >= 0.7.0',
                ]

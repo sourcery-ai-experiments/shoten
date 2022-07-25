@@ -6,6 +6,12 @@
 from array import array
 from collections import defaultdict  # Counter
 from datetime import datetime
+from typing import Dict, Union
+
+try:
+    from numpy.typing import ArrayLike as NDArray # type: ignore[import]
+except ImportError:
+    from nptyping import NDArray  # type: ignore[import]
 
 
 TODAY = datetime.now()
@@ -20,13 +26,13 @@ MAX_NGRAM_VOC = 15000
 class Entry:
     "Defines a class for dictionaries entries, containing metadata and stats."
     __slots__ = ['absfreq', 'headings', 'mean', 'series_abs', 'series_rel', 'sources', 'stddev', 'time_series', 'total']
-    def __init__(self):
+    def __init__(self) -> None:
         self.absfreq: int
         self.headings: bool = False
         self.mean: float
-        self.series_abs = array('f')
-        self.series_rel = array('f')
-        self.sources = defaultdict(int)
+        self.series_abs: NDArray[int] = array('f')
+        self.series_rel: NDArray[float] = array('f')
+        self.sources: Dict[str, int] = defaultdict(int)
         self.stddev: float
-        self.time_series = array(ARRAY_TYPE)
-        self.total: int
+        self.time_series: NDArray[int] = array(ARRAY_TYPE)
+        self.total: float
