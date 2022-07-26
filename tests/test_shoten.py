@@ -39,12 +39,12 @@ def test_basics():
     # load words
     myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
     assert len(myvocab) == 3
-    assert myvocab['Other'].sources == Counter({'Source1': 1})
+    assert myvocab['Others'].sources == Counter({'Source1': 1})
     # pickling and unpickling
     _, filepath = tempfile.mkstemp(suffix='.pickle', text=True)
     pickle_wordinfo(myvocab, filepath)
     myvocab2 = unpickle_wordinfo(filepath)
-    assert len(myvocab2) == len(myvocab) and myvocab2['Tests'].time_series.all() == myvocab['Tests'].time_series.all()
+    assert len(myvocab2) == len(myvocab) and myvocab2['2er-Tests'].time_series.all() == myvocab['2er-Tests'].time_series.all()
     # generate from XML file
     myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir' / 'test2'), langcodes=('de'))
     assert len(myvocab) == 1 and 'Telegram' in myvocab and myvocab['Telegram'].sources['horizont.at'] == 1
@@ -94,16 +94,17 @@ def test_internals():
     # filter known lemmata
     assert filter_lemmaform('Berge', lang='de', lemmafilter=True) is None
     assert filter_lemmaform('Berge', lang='de', lemmafilter=False) == 'Berg'
+    assert filter_lemmaform('Bergungen', lang='de', lemmafilter=False) == 'Bergung'
 
     # store in vocabulary
     myvocab = {}
-    myvocab = putinvocab(myvocab, 'Berge', 5, source='Source_0', inheadings=True)
-    assert 'Berge' in myvocab and myvocab['Berge'].time_series == array('H', [5]) and myvocab['Berge'].headings is True
+    myvocab = putinvocab(myvocab, 'Bergung', 5, source='Source_0', inheadings=True)
+    assert 'Bergung' in myvocab and myvocab['Bergung'].time_series == [5] and myvocab['Bergung'].headings is True
 
     # de-hyphening
     myvocab = {
-        'de-hyphening': ToEntry({'time_series': array('H', [1, 2, 3]), 'sources': Counter(['source1']), 'headings': True}),
-        'dehyphening': ToEntry({'time_series': array('H', [3, 4]), 'sources': Counter(['source2']), 'headings': False})
+        'de-hyphening': ToEntry({'time_series': [1, 2, 3], 'sources': Counter(['source1']), 'headings': True}),
+        'dehyphening': ToEntry({'time_series': [3, 4], 'sources': Counter(['source2']), 'headings': False})
     }
     # missing component
     newvocab = prune_vocab(deepcopy(myvocab), 'de-hyphen', 'dehyphen')
@@ -118,11 +119,11 @@ def test_internals():
     assert newvocab['dehyphening'].headings is True
 
     # refine vocab
-    myvocab['Berge'] = ToEntry({'time_series': array('H', [5]), 'sources': Counter(['source3']), 'headings': False})
+    myvocab['Bergungen'] = ToEntry({'time_series': [5], 'sources': Counter(['source3']), 'headings': False})
     newvocab = refine_vocab(deepcopy(myvocab), lang='de', lemmafilter=False, dehyphenation=False)
-    assert 'Berg' in newvocab and 'de-hyphening' in newvocab
+    assert 'Bergung' in newvocab and 'de-hyphening' in newvocab
     newvocab = refine_vocab(deepcopy(myvocab), lang='de', lemmafilter=True, dehyphenation=True)
-    assert 'Berge' not in newvocab and 'Berg' not in newvocab and 'de-hyphening' not in newvocab
+    assert 'Bergungen' not in newvocab and 'Bergung' not in newvocab and 'de-hyphening' not in newvocab
 
     # filter levels
     newvocab = convert_to_numpy(newvocab)
@@ -136,24 +137,24 @@ def test_internals():
     # frequencies
     oldestday, newestday = 21, 1
     myvocab = {
-        'Berg': ToEntry({'time_series': array('H', [newestday, 10, 10, oldestday])}),
-        'Meer': ToEntry({'time_series': array('H', [newestday, 8, 9, 11, oldestday])}),
-        'Tal': ToEntry({'time_series': array('H', [newestday, oldestday])}),
-        'Zebra': ToEntry({'time_series': array('H', [10])})
+        'Bergung': ToEntry({'time_series': [newestday, 10, 10, oldestday]}),
+        'Meeresrauschen': ToEntry({'time_series': [newestday, 8, 9, 11, oldestday]}),
+        'Talfahrt': ToEntry({'time_series': [newestday, oldestday]}),
+        'Zebrastreifen': ToEntry({'time_series': [10]})
     }
     bins = calculate_bins(myvocab, interval=7)
     assert bins == [14, 7]
     myvocab = refine_frequencies(myvocab, bins)
-    assert 'Berg' in myvocab and 'Tal' not in myvocab and 'Zebra' not in myvocab
+    assert 'Bergung' in myvocab and 'Meeresrauschen' in myvocab and 'Talfahrt' not in myvocab and 'Zebrastreifen' not in myvocab
 
     # freq calculations
     myvocab, timeseries = compute_frequencies(myvocab, bins)
-    assert myvocab['Berg'].total == 400000.0 and myvocab['Berg'].series_abs == array('H', [0, 2])
-    assert myvocab['Meer'].total == 600000.0 and myvocab['Meer'].series_abs == array('H', [0, 3])
+    assert myvocab['Bergung'].total == 400000.0 and myvocab['Bergung'].series_abs == array('H', [0, 2])
+    assert myvocab['Meeresrauschen'].total == 600000.0 and myvocab['Meeresrauschen'].series_abs == array('H', [0, 3])
     assert timeseries == [0, 5]
     myvocab = combine_frequencies(myvocab, bins, timeseries)
-    assert myvocab['Berg'].series_rel == array('f', [0, 400000.0])
-    assert myvocab['Meer'].series_rel == array('f', [0, 600000.0])
+    assert myvocab['Bergung'].series_rel == array('f', [0, 400000.0])
+    assert myvocab['Meeresrauschen'].series_rel == array('f', [0, 600000.0])
 
 
 def test_cli():
@@ -190,7 +191,7 @@ def test_filters():
 
     # lemmata
     newvocab = recognized_by_simplemma(deepcopy(myvocab), lang='de')
-    assert newvocab == {}
+    assert len(newvocab) == 1
 
     # filters
     # sources
@@ -203,7 +204,7 @@ def test_filters():
     assert len(newvocab) == 2
     newvocab = sources_freqfilter(deepcopy(myvocab), balanced=True)
     assert len(newvocab) == 2
-    newvocab['Tests'].sources = {'Source1': 2, 'Source2': 25}
+    newvocab['2er-Tests'].sources = {'Source1': 2, 'Source2': 25}
     newvocab['Vaccines'].sources = {'Source1': 2, 'Source2': 3}
     result = sources_freqfilter(deepcopy(newvocab), balanced=True)
     assert len(result) == 1
@@ -215,9 +216,9 @@ def test_filters():
     newvocab = frequency_filter(deepcopy(myvocab))
     assert len(newvocab) == 2
     # list
-    newvocab = wordlist_filter(deepcopy(myvocab), ['Tests', 'Other'], keep_words=False)
+    newvocab = wordlist_filter(deepcopy(myvocab), ['2er-Tests', 'Others'], keep_words=False)
     assert len(newvocab) == 1
-    newvocab = wordlist_filter(deepcopy(myvocab), ['Tests', 'Other'], keep_words=True)
+    newvocab = wordlist_filter(deepcopy(myvocab), ['2er-Tests', 'Others'], keep_words=True)
     assert len(newvocab) == 2
     # age
     assert len(myvocab) == 3
@@ -227,16 +228,16 @@ def test_filters():
     # scoring function
     scores = {}
     scores = scoring_func(scores, 1, newvocab)
-    assert scores == {'Other': 1, 'Tests': 1}
+    assert scores == {'Others': 1, '2er-Tests': 1}
     scores = scoring_func(scores, 1, newvocab)
-    assert scores == {'Other': 2, 'Tests': 2}
+    assert scores == {'Others': 2, '2er-Tests': 2}
 
     # hyphens
     myvocab = {
-        'de-hyphening': ToEntry({'time_series': array('H', [1, 2, 3])}),
-        'hyphens-stuff': ToEntry({'time_series': array('H', [3, 3])}),
-        'hyphen-stuff': ToEntry({'time_series': array('H', [3, 3, 3])}),
-        'stuff': ToEntry({'time_series': array('H', [3, 3, 3, 3, 3])})
+        'de-hyphening': ToEntry({'time_series': [1, 2, 3]}),
+        'hyphens-stuff': ToEntry({'time_series':[3, 3]}),
+        'hyphen-stuff': ToEntry({'time_series': [3, 3, 3]}),
+        'stuff': ToEntry({'time_series': [3, 3, 3, 3, 3]})
     }
     myvocab = convert_to_numpy(myvocab)
     newvocab = hyphenated_filter(myvocab, perc=0, verbose=True)
@@ -244,12 +245,12 @@ def test_filters():
 
     # zipf
     myvocab = {
-        'short': ToEntry({'time_series': array('H', [1, 2, 3])}),
-        'the-longest-word': ToEntry({'time_series': array('H', [1, 2, 3])}),
-        'longer': ToEntry({'time_series': array('H', [1])}),
-        'other1': ToEntry({'time_series': array('H', [1, 2, 3])}),
-        'this': ToEntry({'time_series': array('H', [1, 2])}),
-        'one': ToEntry({'time_series': array('H', [1, 2, 3, 4, 5])}),
+        'short': ToEntry({'time_series': [1, 2, 3]}),
+        'the-longest-word': ToEntry({'time_series': [1, 2, 3]}),
+        'longer': ToEntry({'time_series': [1]}),
+        'other1': ToEntry({'time_series': [1, 2, 3]}),
+        'this': ToEntry({'time_series': [1, 2]}),
+        'one': ToEntry({'time_series': [1, 2, 3, 4, 5]}),
     }
     myvocab = convert_to_numpy(myvocab)
     newvocab = zipf_filter(deepcopy(myvocab), freqperc=80, lenperc=20, verbose=True)
@@ -259,8 +260,8 @@ def test_filters():
 
     # headings
     myvocab = {
-        'Berg': ToEntry({'time_series': array('H', [1, 2, 3]), 'headings': True}),
-        'Tal': ToEntry({'time_series': array('H', [1, 2, 3]), 'headings': False}),
+        'Berg': ToEntry({'time_series': [1, 2, 3], 'headings': True}),
+        'Tal': ToEntry({'time_series': [1, 2, 3], 'headings': False}),
     }
     myvocab = headings_filter(myvocab)
     assert len(myvocab) == 1

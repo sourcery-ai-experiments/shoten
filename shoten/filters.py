@@ -23,6 +23,9 @@ from .datatypes import Entry, MAX_NGRAM_VOC, MAX_SERIES_VAL
 
 RE_FILTER = re.compile(r'[^\W\d\.-]')
 
+MIN_LENGTH = 6
+MAX_LENGTH = 40
+
 
 
 def print_changes(phase: str, old_len: int, new_len: int) -> None:
@@ -66,8 +69,10 @@ def combined_filters(myvocab: Dict[str, Entry], setting: str) -> Dict[str, Entry
 @lru_cache(maxsize=1048576)
 def is_relevant_input(token: str) -> bool:
     'Determine if the given token is to be considered relevant for further processing.'
-    # apply filter first
-    if not 5 <= len(token) <= 50 or token.startswith('@') or token.startswith('#') or token.endswith('-'):
+    # apply filters first
+    if not MIN_LENGTH <= len(token) <= MAX_LENGTH:
+        return False
+    if token.startswith('@') or token.startswith('#') or token.endswith('-'):
         return False
     token = token.rstrip(string.punctuation)
     if len(token) == 0 or token.isnumeric() or not RE_FILTER.search(token):
@@ -80,7 +85,7 @@ def is_relevant_input(token: str) -> bool:
                 return False
         elif char.isdigit():
             num_digit += 1
-            if num_digit > 4:
+            if num_digit > 3:
                 return False
     return True
 

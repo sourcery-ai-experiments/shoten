@@ -32,5 +32,5 @@ class Entry:
         self.series_rel: Any[float] = array('f')
         self.sources: Dict[str, int] = defaultdict(int)
         self.stddev: float
-        self.time_series: Any[int] = array(ARRAY_TYPE)
+        self.time_series: Any[int] = []  # array(ARRAY_TYPE)
         self.total: float

@@ -23,7 +23,7 @@ from lxml.etree import fromstring  # type: ignore[import]
 from simplemma import lemmatize, simple_tokenizer, is_known  # type: ignore[import]
 
 from .datatypes import ARRAY_TYPE, Entry, MAX_SERIES_VAL, TODAY
-from .filters import combined_filters, is_relevant_input
+from .filters import combined_filters, is_relevant_input, MIN_LENGTH
 
 
 LOCK = RLock()
@@ -112,8 +112,8 @@ def refine_vocab(myvocab: Dict[str, Entry], lang: Union[str, Tuple[str, ...], No
         changes, deletions = [], []
         for token in myvocab:
             lemma = filter_lemmaform(token, lang=lang, lemmafilter=lemmafilter)
-            ##if is_relevant_input(lemma) is True:
-            if lemma is None:
+            #if is_relevant_input(lemma) is True:
+            if lemma is None or len(lemma) < MIN_LENGTH:
                 deletions.append(token)
             # register lemma and add frequencies
             elif lemma != token:
@@ -165,7 +165,7 @@ def read_file(filepath: str, *, maxdiff: int=1000, mindiff: int=0, authorregex: 
     # headings
     headwords = set()
     if details is True:
-        bow = [' '.join(h.itertext()) for h in mytree.findall('.//tei:fw|.//tei:head', namespaces=NSPACE)]
+        bow = [' '.join(h.itertext()) for h in mytree.xpath('.//tei:fw|.//tei:head', namespaces=NSPACE)]
         headwords = {t for t in simple_tokenizer(' '.join(bow)) if is_relevant_input(t)}
     # process
     for match in simple_tokenizer(' '.join(mytree.find('.//tei:text', namespaces=NSPACE).itertext()), iterate=True):
@@ -258,8 +258,8 @@ def calculate_bins(myvocab: Dict[str, Entry], interval: int=7, maxdiff: int=1000
     oldest, newest = 0, maxdiff
     # iterate over vocabulary to find bounds
     for word in myvocab:
-        oldest = max(oldest, np.max(myvocab[word].time_series))
-        newest = min(newest, np.min(myvocab[word].time_series))
+        oldest = max(oldest, max(myvocab[word].time_series))
+        newest = min(newest, min(myvocab[word].time_series))
     # return bins corresponding to boundaries and interval
     return [d for d in range(oldest, newest, -1) if d % interval == 0 and oldest - d >= interval]
 
@@ -269,11 +269,11 @@ def refine_frequencies(vocab: Dict[str, Entry], bins: List[int]) -> Dict[str, En
     deletions = []
     # remove occurrences that are out of bounds: no complete week
     for word in vocab:
-        new_series = array(ARRAY_TYPE, [d for d in vocab[word].time_series if bins[-1] <= d < bins[0]])
+        new_series = [d for d in vocab[word].time_series if bins[-1] <= d < bins[0]]
         if len(new_series) <= 1:
             deletions.append(word)
         else:
-            vocab[word].time_series = new_series
+            vocab[word].time_series = new_series  # array(ARRAY_TYPE, new_series)
     # remove words with too little data
     for word in deletions:
         del vocab[word]
