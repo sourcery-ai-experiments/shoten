@@ -36,7 +36,7 @@ def print_changes(phase: str, old_len: int, new_len: int) -> None:
 
 def scoring_func(scores: Dict[str, int], value: int, newvocab: Dict[str, Entry]) -> Dict[str, int]:
     'Defines scores for each word and add values.'
-    for wordform in set(newvocab):
+    for wordform in newvocab:
         if wordform not in scores:
             scores[wordform] = 0
         scores[wordform] += value
@@ -274,7 +274,7 @@ def sources_filter(myvocab: Dict[str, Entry], myset: Set[str]) -> Dict[str, Entr
 
 def wordlist_filter(myvocab: Dict[str, Entry], mylist: List[str], keep_words: bool=False) -> Dict[str, Entry]:
     '''Keep or discard words present in the input list.'''
-    intersection = {w for w in myvocab if w in set(mylist)}
+    intersection = set(myvocab) & set(mylist)
     if keep_words is False:
         deletions = list(intersection)
     else:
