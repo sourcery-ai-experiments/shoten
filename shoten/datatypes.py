@@ -6,12 +6,10 @@
 from array import array
 from collections import defaultdict  # Counter
 from datetime import datetime
-from typing import Dict, Union
+from typing import Any, Dict
 
-try:
-    from numpy.typing import ArrayLike as NDArray # type: ignore[import]
-except ImportError:
-    from nptyping import NDArray  # type: ignore[import]
+# Python 3.7+
+# from numpy.typing import ArrayLike  # type: ignore[import]
 
 
 TODAY = datetime.now()
@@ -30,9 +28,9 @@ class Entry:
         self.absfreq: int
         self.headings: bool = False
         self.mean: float
-        self.series_abs: NDArray[int] = array('f')
-        self.series_rel: NDArray[float] = array('f')
+        self.series_abs: Any[int] = array('f')
+        self.series_rel: Any[float] = array('f')
         self.sources: Dict[str, int] = defaultdict(int)
         self.stddev: float
-        self.time_series: NDArray[int] = array(ARRAY_TYPE)
+        self.time_series: Any[int] = array(ARRAY_TYPE)
         self.total: float
