@@ -1,3 +1,4 @@
+# pylint: disable=E0611
 """Main module."""
 
 
@@ -17,13 +18,12 @@ from typing import Any, Dict, Iterator, List, Optional, Pattern, Tuple, Union
 
 import numpy as np  # type: ignore[import]
 
-from courlan import extract_domain
+from courlan import extract_domain  # type: ignore[import]
 from lxml.etree import fromstring  # type: ignore[import]
-from simplemma import lemmatize, simple_tokenizer, is_known
+from simplemma import lemmatize, simple_tokenizer, is_known  # type: ignore[import]
 
 from .datatypes import ARRAY_TYPE, Entry, MAX_SERIES_VAL, TODAY
 from .filters import combined_filters, is_relevant_input
-from shoten.datatypes import Entry
 
 
 LOCK = RLock()
@@ -57,10 +57,6 @@ def filter_lemmaform(token: str, lang: Union[str, Tuple[str, ...], None]=('de', 
         return lemmatize(token, lang=lang, greedy=True, silent=False)
     except ValueError:
         return token
-    # log this error
-    except TypeError as err:
-        print('#', token, '--', err)
-        return None
 
 
 def putinvocab(myvocab: Dict[str, Entry], wordform: str, timediff: int, *, source: Optional[str]=None, inheadings: bool=False) -> Dict[str, Entry]:

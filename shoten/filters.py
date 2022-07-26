@@ -9,14 +9,14 @@ from collections import Counter
 #from copy import deepcopy
 from functools import lru_cache
 from math import ceil
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Set, Tuple, Union
 
 import numpy as np  # type: ignore[import]
 
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer  # type: ignore
 from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
 
-from simplemma import is_known, lemmatize
+from simplemma import is_known, lemmatize  # type: ignore[import]
 
 from .datatypes import Entry, MAX_NGRAM_VOC, MAX_SERIES_VAL
 
@@ -269,8 +269,7 @@ def sources_filter(myvocab: Dict[str, Entry], myset: Set[str]) -> Dict[str, Entr
 
 def wordlist_filter(myvocab: Dict[str, Entry], mylist: List[str], keep_words: bool=False) -> Dict[str, Entry]:
     '''Keep or discard words present in the input list.'''
-    myset = set(mylist)
-    intersection = set([w for w in myvocab if w in myset])
+    intersection = {w for w in myvocab if w in set(mylist)}
     if keep_words is False:
         deletions = list(intersection)
     else:
