@@ -2,7 +2,6 @@
 
 
 import csv
-import re
 import string
 
 from collections import Counter
@@ -21,7 +20,7 @@ from simplemma import is_known, lemmatize  # type: ignore[import]
 from .datatypes import Entry, MAX_NGRAM_VOC, MAX_SERIES_VAL
 
 
-RE_FILTER = re.compile(r'[^\W\d\.-]')
+UNSUITABLE_PUNCT = set(string.punctuation) - {'-', '_'}
 
 MIN_LENGTH = 6
 MAX_LENGTH = 40
@@ -72,10 +71,10 @@ def is_relevant_input(token: str) -> bool:
     # apply filters first
     if not MIN_LENGTH <= len(token) <= MAX_LENGTH:
         return False
-    if token.startswith('@') or token.startswith('#') or token.endswith('-'):
+    if token.endswith('-'):
         return False
     token = token.rstrip(string.punctuation)
-    if len(token) == 0 or token.isnumeric() or not RE_FILTER.search(token):
+    if not token or token.isnumeric():
         return False
     num_upper, num_digit = 0, 0
     for char in token:
@@ -87,6 +86,8 @@ def is_relevant_input(token: str) -> bool:
             num_digit += 1
             if num_digit > 3:
                 return False
+        elif char in UNSUITABLE_PUNCT:
+            return False
     return True
 
 

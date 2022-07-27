@@ -168,11 +168,11 @@ def read_file(filepath: str, *, maxdiff: int=1000, mindiff: int=0, authorregex: 
         bow = [' '.join(h.itertext()) for h in mytree.xpath('.//tei:fw|.//tei:head', namespaces=NSPACE)]
         headwords = {t for t in simple_tokenizer(' '.join(bow)) if is_relevant_input(t)}
     # process
-    for match in simple_tokenizer(' '.join(mytree.find('.//tei:text', namespaces=NSPACE).itertext()), iterate=True):
+    for token in simple_tokenizer(' '.join(mytree.find('.//tei:text', namespaces=NSPACE).itertext())):
         # form and regex-based filter
-        if is_relevant_input(match[0]) is True:
+        if is_relevant_input(token) is True:
             # return tuple
-            yield match[0], timediff, source, match[0] in headwords
+            yield token, timediff, source, token in headwords  # type: ignore[misc]
 
 
 def gen_wordlist(mydir: str, *, langcodes: Union[str, Tuple[str, ...], None]=None, maxdiff: int=1000, mindiff: int=0, authorregex: Optional[Pattern[str]]=None, lemmafilter: bool=False, details: bool=True, threads: Optional[int]=THREADNUM) -> Any:  # ArrayLike
@@ -325,6 +325,7 @@ def compute_frequencies(vocab: Dict[str, Entry], bins: List[int]) -> Tuple[Dict[
 
 def combine_frequencies(vocab: Dict[str, Entry], bins: List[int], timeseries: List[int]) -> Dict[str, Entry]:
     "Compute relative frequencies and word statistics."
+    deletions = []
     for wordform in vocab:
         for i in range(len(bins)):
             try:
@@ -334,10 +335,17 @@ def combine_frequencies(vocab: Dict[str, Entry], bins: List[int], timeseries: Li
         # take non-zero values and perform calculations
         series = [f for f in vocab[wordform].series_rel if f != 0.0]
         # todo: skip if series too short
+        # delete rare words to prevent unreliable figures
+        #if len(series) < len(bins) / 2:
+        if len(bins) >= 3 and len(series) < 3:
+            deletions.append(wordform)
+            continue
         vocab[wordform].stddev = float(f'{np.std(series):.3f}')
         vocab[wordform].mean = float(f'{np.mean(series):.3f}')
         # spare memory
         del vocab[wordform].series_abs
+    for word in deletions:
+        del vocab[word]
     return vocab
 
 
