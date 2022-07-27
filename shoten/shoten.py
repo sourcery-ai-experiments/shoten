@@ -132,7 +132,7 @@ def refine_vocab(myvocab: Dict[str, Entry], lang: Union[str, Tuple[str, ...], No
 def convert_to_numpy(myvocab: Dict[str, Entry]) -> Dict[str, Entry]:
     "Convert time series to numpy array."
     for wordform in myvocab:
-        myvocab[wordform].time_series = np.array(myvocab[wordform].time_series)
+        myvocab[wordform].time_series = np.array(myvocab[wordform].time_series, dtype="uint16")
     return myvocab
 
 
@@ -333,7 +333,7 @@ def combine_frequencies(vocab: Dict[str, Entry], bins: List[int], timeseries: Li
             except ZeroDivisionError:
                 vocab[wordform].series_rel.append(0.0)
         # take non-zero values and perform calculations
-        series = [f for f in vocab[wordform].series_rel if f != 0.0]
+        series = np.array([f for f in vocab[wordform].series_rel if f != 0.0], dtype="float32")
         # todo: skip if series too short
         # delete rare words to prevent unreliable figures
         #if len(series) < len(bins) / 2:
