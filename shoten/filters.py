@@ -209,7 +209,7 @@ def freshness_filter(vocab: Dict[str, Entry], percentage: float=10) -> Dict[str,
     deletions = []
     for token in vocab:
         # re-order
-        series = -np.sort(flatten(vocab[token].time_series))
+        series = -np.sort(flatten(vocab[token].time_series))  # type: ignore
         # thresholds
         thresh = series.shape[0]*(percentage/100)
         freshnessindex = np.sum(series[-ceil(thresh):])
