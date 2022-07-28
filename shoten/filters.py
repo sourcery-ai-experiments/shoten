@@ -15,9 +15,9 @@ import numpy as np  # type: ignore[import]
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer  # type: ignore
 from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
 
-from simplemma import is_known, lemmatize  # type: ignore[import]
+from simplemma import is_known, lemmatize  # type: ignore
 
-from .datatypes import Entry, MAX_NGRAM_VOC, MAX_SERIES_VAL
+from .datatypes import flatten, sum_entry, sum_entries, Entry, MAX_NGRAM_VOC, MAX_SERIES_VAL
 
 
 UNSUITABLE_PUNCT = set(string.punctuation) - {'-', '_'}
@@ -42,27 +42,27 @@ def scoring_func(scores: Dict[str, int], value: int, newvocab: Dict[str, Entry])
     return scores
 
 
-def store_results(myvocab: Dict[str, Entry], filename: str) -> None:
+def store_results(vocab: Dict[str, Entry], filename: str) -> None:
     'Write vocabulary with essential data to file.'
     with open(filename, 'w', encoding='utf-8') as outfile:
         tsvwriter = csv.writer(outfile, delimiter='\t')
         tsvwriter.writerow(['word', 'sources', 'time series'])
-        # for token in sorted(myvocab, key=locale.strxfrm):
-        for entry in myvocab:
-            tsvwriter.writerow([entry, ','.join(myvocab[entry].sources), str(myvocab[entry].time_series.tolist())])
+        # for token in sorted(vocab, key=locale.strxfrm):
+        for entry in vocab:
+            tsvwriter.writerow([entry, ','.join(vocab[entry].sources), str(flatten(vocab[entry].time_series))])
 
 
-def combined_filters(myvocab: Dict[str, Entry], setting: str) -> Dict[str, Entry]:
+def combined_filters(vocab: Dict[str, Entry], setting: str) -> Dict[str, Entry]:
     '''Apply a combination of filters based on the chosen setting.'''
     if setting == 'loose':
-        return freshness_filter(frequency_filter(hapax_filter(myvocab)))
+        return freshness_filter(frequency_filter(hapax_filter(vocab)))
     if setting == 'normal':
-        return freshness_filter(oldest_filter(frequency_filter(hapax_filter(myvocab))))
+        return freshness_filter(oldest_filter(frequency_filter(hapax_filter(vocab))))
     if setting == 'strict':
         return freshness_filter(oldest_filter(
-               frequency_filter(shortness_filter(ngram_filter(hapax_filter(myvocab))), min_perc=10)
+               frequency_filter(shortness_filter(ngram_filter(hapax_filter(vocab))), min_perc=10)
                ))
-    return myvocab
+    return vocab
 
 
 @lru_cache(maxsize=1048576)
@@ -91,169 +91,177 @@ def is_relevant_input(token: str) -> bool:
     return True
 
 
-def hapax_filter(myvocab: Dict[str, Entry], freqcount: float=2) -> Dict[str, Entry]:
+def hapax_filter(vocab: Dict[str, Entry], freqcount: int=2) -> Dict[str, Entry]:
     '''Eliminate hapax legomena and delete same date only.'''
-    old_len = len(myvocab)
-    for token in [t for t in myvocab if np.unique(myvocab[t].time_series).shape[0] <= freqcount]:
-        del myvocab[token]
-    print_changes('sameness/hapax', old_len, len(myvocab))
-    return myvocab
+    old_len = len(vocab)
+    for token in [t for t in vocab if len(vocab[t].time_series) == 1 and sum_entry(vocab[t]) <= freqcount]:
+        del vocab[token]
+    print_changes('sameness/hapax', old_len, len(vocab))
+    return vocab
 
 
-def recognized_by_simplemma(myvocab: Dict[str, Entry], lang: Union[str, Tuple[str, ...], None]=None) -> Dict[str, Entry]:
+def recognized_by_simplemma(vocab: Dict[str, Entry], lang: Union[str, Tuple[str, ...], None]=None) -> Dict[str, Entry]:
     'Run the simplemma lemmatizer to check if input is recognized.'
-    old_len = len(myvocab)
-    for token in [t for t in myvocab if is_known(t, lang=lang)]:  # type: ignore[arg-type]
-        del myvocab[token]
-    print_changes('known by simplemma', old_len, len(myvocab))
+    old_len = len(vocab)
+    for token in [t for t in vocab if is_known(t, lang=lang)]:  # type: ignore[arg-type]
+        del vocab[token]
+    print_changes('known by simplemma', old_len, len(vocab))
     deletions = []
-    for word in myvocab:
+    for word in vocab:
         try:
             lemmatize(word, lang=lang, greedy=True, silent=False)
         except ValueError:
             deletions.append(word)
     for token in deletions:
-        del myvocab[token]
-    print_changes('reduced by simplemma', old_len, len(myvocab))
-    return myvocab
+        del vocab[token]
+    print_changes('reduced by simplemma', old_len, len(vocab))
+    return vocab
 
 
-def shortness_filter(myvocab: Dict[str, Entry], threshold: float=20) -> Dict[str, Entry]:
+def shortness_filter(vocab: Dict[str, Entry], threshold: float=20) -> Dict[str, Entry]:
     '''Eliminate short words'''
-    old_len = len(myvocab)
-    lengths = np.array([len(l) for l in myvocab])
+    old_len = len(vocab)
+    lengths = np.array([len(l) for l in vocab])
     lenthreshold = np.percentile(lengths, threshold)
-    for token in [t for t in myvocab if len(t) < lenthreshold]:
-        del myvocab[token]
-    print_changes('short words', old_len, len(myvocab))
-    return myvocab
+    for token in [t for t in vocab if len(t) < lenthreshold]:
+        del vocab[token]
+    print_changes('short words', old_len, len(vocab))
+    return vocab
 
 
-def frequency_filter(myvocab: Dict[str, Entry], max_perc: float=50, min_perc: float=.001) -> Dict[str, Entry]: # 50 / 0.01
+def frequency_filter(vocab: Dict[str, Entry], max_perc: float=50, min_perc: float=.001) -> Dict[str, Entry]:  # 50 / 0.01
     '''Reduce dict size by stripping least and most frequent items.'''
-    old_len = len(myvocab)
-    myfreq = np.array([myvocab[l].time_series.shape[0] for l in myvocab])
+    old_len = len(vocab)
+    myfreq = np.array(sum_entries(vocab))
     min_thres, max_thres = np.percentile(myfreq, min_perc), np.percentile(myfreq, max_perc)
-    for token in [t for t in myvocab if
-                  myvocab[t].time_series.shape[0] < min_thres or myvocab[t].time_series.shape[0] > max_thres
-                 ]:
-        del myvocab[token]
-    print_changes('most/less frequent', old_len, len(myvocab))
-    return myvocab
+    deletions = []
+    for word, values in vocab.items():
+        occurrences = sum_entry(values)
+        if occurrences < min_thres or occurrences > max_thres:
+            deletions.append(word)
+    for token in deletions:
+        del vocab[token]
+    print_changes('most/less frequent', old_len, len(vocab))
+    return vocab
 
 
-def hyphenated_filter(myvocab: Dict[str, Entry], perc: float=50, verbose: bool=False) -> Dict[str, Entry]: # threshold in percent
+def hyphenated_filter(vocab: Dict[str, Entry], perc: float=50, verbose: bool=False) -> Dict[str, Entry]: # threshold in percent
     '''Reduce dict size by deleting hyphenated tokens when the parts are frequent.'''
-    deletions, old_len = [], len(myvocab)
-    myfreqs = np.array([myvocab[l].time_series.shape[0] for l in myvocab])
+    deletions, old_len = [], len(vocab)
+    myfreqs = np.array(sum_entries(vocab))
     threshold = np.percentile(myfreqs, perc)
-    for word in [w for w in myvocab if '-' in w]:
+    for word in [w for w in vocab if '-' in w]:
         mylist = word.split('-')
         firstpart, secondpart = mylist[0], mylist[1]
-        if firstpart in myvocab and myvocab[firstpart].time_series.shape[0] > threshold or \
-           secondpart in myvocab and myvocab[secondpart].time_series.shape[0] > threshold:
+        if firstpart in vocab and sum_entry(vocab[firstpart]) > threshold or \
+           secondpart in vocab and sum_entry(vocab[secondpart]) > threshold:
             deletions.append(word)
     if verbose is True:
         print(sorted(deletions))
     for item in deletions:
-        del myvocab[item]
-    print_changes('hyphenated', old_len, len(myvocab))
-    return myvocab
+        del vocab[item]
+    print_changes('hyphenated', old_len, len(vocab))
+    return vocab
 
 
-def oldest_filter(myvocab: Dict[str, Entry], threshold: int=50) -> Dict[str, Entry]:
+def oldest_filter(vocab: Dict[str, Entry], threshold: float=50) -> Dict[str, Entry]:
     '''Reduce number of candidate by stripping the oldest.'''
     # todo: what about cases like [365, 1, 1, 1] ?
-    old_len = len(myvocab)
-    myratios = np.array([np.sum(myvocab[l].time_series)/myvocab[l].time_series.shape[0] for l in myvocab])
-    threshold = np.percentile(myratios, threshold)
-    for token in [t for t in myvocab if np.sum(myvocab[t].time_series)/myvocab[t].time_series.shape[0] > threshold]:
-        del myvocab[token]
-    print_changes('oldest', old_len, len(myvocab))
-    return myvocab
+    old_len = len(vocab)
+    ratios, values = {}, []
+    for key, value in vocab.items():
+        ratio = sum(flatten(value.time_series))/sum_entry(value)
+        ratios[key] = ratio
+        values.append(ratio)
+    threshold = np.percentile(np.array(values), threshold)
+    for word, ratio in ratios.items():
+        if ratio > threshold:
+            del vocab[word]
+    print_changes('oldest', old_len, len(vocab))
+    return vocab
 
 
-def zipf_filter(myvocab: Dict[str, Entry], freqperc: float=65, lenperc: float=35, verbose: bool=False) -> Dict[str, Entry]:
+def zipf_filter(vocab: Dict[str, Entry], freqperc: float=65, lenperc: float=35, verbose: bool=False) -> Dict[str, Entry]:
     '''Filter candidates based on a approximation of Zipf's law.'''
     # todo: count length without hyphen or punctuation: len(l) - l.count('-')
-    old_len = len(myvocab)
-    freqs = np.array([myvocab[l].time_series.shape[0] for l in myvocab])
+    old_len = len(vocab)
+    freqs = np.array(sum_entries(vocab))
     freqthreshold = np.percentile(freqs, freqperc)
-    lengths = np.array([len(l) for l in myvocab])
+    lengths = np.array([len(l) for l in vocab])
     lenthreshold = np.percentile(lengths, lenperc)
     deletions = []
-    for token in [t for t in myvocab if myvocab[t].time_series.shape[0] >= freqthreshold and len(t) <= lenthreshold]:
+    for token in [t for t in vocab if sum_entry(vocab[t]) >= freqthreshold and len(t) <= lenthreshold]:
         deletions.append(token)
         # if verbose is True:
-            # print(token, len(token), myvocab[token].time_series.shape[0])
-        del myvocab[token]
+            # print(token, len(token), vocab[token].time_series.shape[0])
+        del vocab[token]
     if verbose is True:
         print(sorted(deletions))
-    print_changes('zipf frequency', old_len, len(myvocab))
-    return myvocab
+    print_changes('zipf frequency', old_len, len(vocab))
+    return vocab
 
 
-def freshness_filter(myvocab: Dict[str, Entry], percentage: float=10) -> Dict[str, Entry]:
+def freshness_filter(vocab: Dict[str, Entry], percentage: float=10) -> Dict[str, Entry]:
     '''Define a freshness threshold to model series of token occurrences in time.'''
-    old_len = len(myvocab)
-    mysums = np.array([np.sum(myvocab[l].time_series) for l in myvocab])
+    old_len = len(vocab)
+    mysums = np.array(sum_entries(vocab))
     datethreshold = np.percentile(mysums, percentage)
     deletions = []
-    for token in myvocab:
+    for token in vocab:
         # re-order
-        myvocab[token].time_series = -np.sort(-myvocab[token].time_series)
+        series = -np.sort(flatten(vocab[token].time_series))
         # thresholds
-        thresh = myvocab[token].time_series.shape[0]*(percentage/100)
-        freshnessindex = np.sum(myvocab[token].time_series[-ceil(thresh):])
-        oldnessindex = np.sum(myvocab[token].time_series[:ceil(thresh)])
+        thresh = series.shape[0]*(percentage/100)
+        freshnessindex = np.sum(series[-ceil(thresh):])
+        oldnessindex = np.sum(series[:ceil(thresh)])
         if oldnessindex < datethreshold:
-            #if oldnessindex < np.percentile(myvocab[token].time_series, percentage):
+            #if oldnessindex < np.percentile(series, percentage):
             #    continue
-            if freshnessindex < np.percentile(myvocab[token].time_series, percentage):
+            if freshnessindex < np.percentile(series, percentage):
                 deletions.append(token)
-            # print(myvocab[token], freshnessindex, oldnessindex, token)
+            # print(vocab[token], freshnessindex, oldnessindex, token)
     for item in deletions:
-        del myvocab[item]
-    print_changes('freshness', old_len, len(myvocab))
-    return myvocab
+        del vocab[item]
+    print_changes('freshness', old_len, len(vocab))
+    return vocab
 
 
-def sources_freqfilter(myvocab: Dict[str, Entry], threshold: int=2, balanced: bool=True) -> Dict[str, Entry]:
+def sources_freqfilter(vocab: Dict[str, Entry], threshold: int=2, balanced: bool=True) -> Dict[str, Entry]:
     '''Filter words based on source diversity.'''
     deletions = []
     i, j = 0, 0
-    for word in myvocab:
-        if len(myvocab[word].sources) == 0:
+    for word in vocab:
+        if len(vocab[word].sources) == 0:
             continue
         # absolute number
-        if len(myvocab[word].sources) < threshold:
+        if len(vocab[word].sources) < threshold:
             deletions.append(word)
             i += 1
             continue
         # distribution of sources
         if balanced is True:
-            values = [t[1] for t in Counter(myvocab[word].sources).most_common()]
+            values = [t[1] for t in Counter(vocab[word].sources).most_common()]
             # first value too present compared to the rest
-            if values[0] >= 4*values[1]: # (sum(values)/len(values)):
+            if values[0] >= 4*values[1]:  # (sum(values)/len(values)):
                 deletions.append(word)
                 j += 1
                 continue
-    old_len = len(myvocab)
+    old_len = len(vocab)
     for item in deletions:
-        del myvocab[item]
+        del vocab[item]
     print_changes('sources freq', old_len, old_len-i)
     print_changes('sources balance', old_len, old_len-j)
-    return myvocab
+    return vocab
 
 
-def sources_filter(myvocab: Dict[str, Entry], myset: Set[str]) -> Dict[str, Entry]:
+def sources_filter(vocab: Dict[str, Entry], myset: Set[str]) -> Dict[str, Entry]:
     '''Only keep the words for which the source contains at least
        one string listed in the input set.'''
     deletions = []
-    for word in myvocab:
+    for word in vocab:
         deletion_flag = True
-        if len(myvocab[word].sources) > 0:
-            for source in myvocab[word].sources:
+        if len(vocab[word].sources) > 0:
+            for source in vocab[word].sources:
                 # for / else construct
                 for mystring in myset:
                     if mystring in source:
@@ -266,35 +274,35 @@ def sources_filter(myvocab: Dict[str, Entry], myset: Set[str]) -> Dict[str, Entr
         # record deletion
         if deletion_flag:
             deletions.append(word)
-    old_len = len(myvocab)
+    old_len = len(vocab)
     for item in deletions:
-        del myvocab[item]
-    print_changes('sources list', old_len, len(myvocab))
-    return myvocab
+        del vocab[item]
+    print_changes('sources list', old_len, len(vocab))
+    return vocab
 
 
-def wordlist_filter(myvocab: Dict[str, Entry], mylist: List[str], keep_words: bool=False) -> Dict[str, Entry]:
+def wordlist_filter(vocab: Dict[str, Entry], mylist: List[str], keep_words: bool=False) -> Dict[str, Entry]:
     '''Keep or discard words present in the input list.'''
-    intersection = set(myvocab) & set(mylist)
+    intersection = set(vocab) & set(mylist)
     if keep_words is False:
         deletions = list(intersection)
     else:
-        deletions = [w for w in myvocab if w not in intersection]
-    old_len = len(myvocab)
+        deletions = [w for w in vocab if w not in intersection]
+    old_len = len(vocab)
     for word in deletions:
-        del myvocab[word]
-    print_changes('word list', old_len, len(myvocab))
-    return myvocab
+        del vocab[word]
+    print_changes('word list', old_len, len(vocab))
+    return vocab
 
 
-def headings_filter(myvocab: Dict[str, Entry]) -> Dict[str, Entry]:
+def headings_filter(vocab: Dict[str, Entry]) -> Dict[str, Entry]:
     '''Filter words based on their presence in headings.'''
-    deletions = [word for word in myvocab if myvocab[word].headings is False]
-    old_len = len(myvocab)
+    deletions = [word for word in vocab if vocab[word].headings is False]
+    old_len = len(vocab)
     for item in deletions:
-        del myvocab[item]
-    print_changes('headings', old_len, len(myvocab))
-    return myvocab
+        del vocab[item]
+    print_changes('headings', old_len, len(vocab))
+    return vocab
 
 
 def read_freqlist(filename: str) -> Dict[str, float]:
@@ -312,55 +320,59 @@ def read_freqlist(filename: str) -> Dict[str, float]:
     return freqlimits
 
 
-def longtermfilter(myvocab: Dict[str, Entry], filename: str, mustexist: bool=False, startday: int=1, interval: int=7) -> Dict[str, Entry]:
+def longtermfilter(vocab: Dict[str, Entry], filename: str, mustexist: bool=False, startday: int=1, interval: int=7) -> Dict[str, Entry]:
     'Discard words which are not significantly above a mean long-term frequency.'
     freqlimits = read_freqlist(filename)
     oldestday = startday + interval - 1
     allfreqs = 0
-    for word in myvocab:
-        mydays = Counter(myvocab[word].time_series)
+    for word in vocab:
+        mydays = vocab[word].time_series
         occurrences = sum(
             mydays[day]
             for day in range(oldestday, startday - 1, -1)
             if day in mydays
         )
         # compare with maximum possible value
+        # todo: check this line!
         occurrences = min(MAX_SERIES_VAL, occurrences)
         # compute totals
-        myvocab[word].absfreq = occurrences
+        vocab[word].absfreq = occurrences
         allfreqs += occurrences
+    # safeguard
+    if allfreqs == 0:
+        return vocab
     # relative frequency
     deletions = []
-    intersection = [w for w in myvocab if w in freqlimits]
+    intersection = set(vocab) & set(freqlimits)
     for word in intersection:
-        relfreq = (myvocab[word].absfreq / allfreqs)*1000000
+        relfreq = (vocab[word].absfreq / allfreqs)*1000000
         # threshold defined by long-term frequencies
         if relfreq < freqlimits[word]:
             #print(word, relfreq, freqlimits[word])
             deletions.append(word)
     if mustexist is True:
-        deletions += [w for w in myvocab if w not in freqlimits]
-    old_len = len(myvocab)
+        deletions += [w for w in vocab if w not in freqlimits]
+    old_len = len(vocab)
     for item in deletions:
-        del myvocab[item]
-    print_changes('long-term frequency threshold', old_len, len(myvocab))
-    return myvocab
+        del vocab[item]
+    print_changes('long-term frequency threshold', old_len, len(vocab))
+    return vocab
 
 
-def ngram_filter(myvocab: Dict[str, Entry], threshold: float=90, verbose: bool=False) -> Dict[str, Entry]:
+def ngram_filter(vocab: Dict[str, Entry], threshold: float=90, verbose: bool=False) -> Dict[str, Entry]:
     '''Find dissimilar tokens based on character n-gram occurrences.'''
-    lengths = np.array([len(l) for l in myvocab])
+    lengths = np.array([len(l) for l in vocab])
     minlengthreshold = np.percentile(lengths, 1)
     for i in (70, 65, 60, 55, 50, 45, 40):
         maxlengthreshold = np.percentile(lengths, i)
-        mytokens = [t for t in myvocab if minlengthreshold <= len(t) <= maxlengthreshold]
+        mytokens = [t for t in vocab if minlengthreshold <= len(t) <= maxlengthreshold]
         #print(i, len(mytokens))
         if len(mytokens) <= MAX_NGRAM_VOC:
             break
     if len(mytokens) > MAX_NGRAM_VOC:
         print('Vocabulary size too large, skipping n-gram filtering')
-        return myvocab
-    old_len = len(myvocab)
+        return vocab
+    old_len = len(vocab)
     # token cosine similarity
     max_exp = 21
     vectorizer = CountVectorizer(analyzer='char', max_features=2 ** max_exp, ngram_range=(1,4), strip_accents=None, lowercase=True, max_df=1.0)
@@ -368,11 +380,11 @@ def ngram_filter(myvocab: Dict[str, Entry], threshold: float=90, verbose: bool=F
     vectorizer = TfidfVectorizer(analyzer='char', max_features=2 ** max_exp, ngram_range=(1,4), strip_accents=None, lowercase=True, max_df=1.0, sublinear_tf=True, binary=True)
     secondset = set(compute_deletions(mytokens, vectorizer, threshold))
     for token in firstset.intersection(secondset):
-        del myvocab[token]
+        del vocab[token]
     if verbose is True:
         print(sorted(firstset.intersection(secondset)))
-    print_changes('ngrams', old_len, len(myvocab))
-    return myvocab
+    print_changes('ngrams', old_len, len(vocab))
+    return vocab
 
 
 def compute_deletions(mytokens: List[str], vectorizer: Any, threshold: float) -> List[str]:

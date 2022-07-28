@@ -18,11 +18,11 @@ from typing import Any, Dict, Iterator, List, Optional, Pattern, Tuple, Union
 
 import numpy as np  # type: ignore[import]
 
-from courlan import extract_domain  # type: ignore[import]
+from courlan import extract_domain  # type: ignore
 from lxml.etree import fromstring  # type: ignore[import]
-from simplemma import lemmatize, simple_tokenizer, is_known  # type: ignore[import]
+from simplemma import lemmatize, simple_tokenizer, is_known  # type: ignore
 
-from .datatypes import ARRAY_TYPE, Entry, MAX_SERIES_VAL, TODAY
+from .datatypes import dict_sum, sum_entry, flatten, ARRAY_TYPE, Entry, MAX_SERIES_VAL, TODAY
 from .filters import combined_filters, is_relevant_input, MIN_LENGTH
 
 
@@ -54,7 +54,7 @@ def filter_lemmaform(token: str, lang: Union[str, Tuple[str, ...], None]=('de', 
         return None
     # lemmatize
     try:
-        return lemmatize(token, lang=lang, greedy=True, silent=False)
+        return lemmatize(token, lang=lang, greedy=True, silent=False)  # type: ignore[no-any-return]
     except ValueError:
         return token
 
@@ -63,7 +63,7 @@ def putinvocab(myvocab: Dict[str, Entry], wordform: str, timediff: int, *, sourc
     "Store the word form in the vocabulary or add a new occurrence to it."
     if wordform not in myvocab:
         myvocab[wordform] = Entry()
-    myvocab[wordform].time_series.append(timediff)
+    myvocab[wordform].time_series[timediff] += 1
     if source is not None and len(source) > 0:
         # slower: myvocab[wordform].sources.update(source)
         myvocab[wordform].sources[source] += 1
@@ -72,21 +72,20 @@ def putinvocab(myvocab: Dict[str, Entry], wordform: str, timediff: int, *, sourc
     return myvocab
 
 
-def prune_vocab(myvocab: Dict[str, Entry], first: str, second: str) -> Dict[str, Entry]:
+def prune_vocab(vocab: Dict[str, Entry], first: str, second: str) -> Dict[str, Entry]:
     "Append characteristics of wordform to be deleted to an other one."
-    if first not in myvocab:
-        myvocab[first] = Entry()
-    if second not in myvocab:
-        myvocab[second] = Entry()
-    # concatenate lists (faster)
-    myvocab[second].time_series[0:0] = myvocab[first].time_series
+    if first not in vocab:
+        vocab[first] = Entry()
+    if second not in vocab:
+        vocab[second] = Entry()
+    # sum up series (faster)
+    vocab[second].time_series = dict_sum(vocab[first].time_series, vocab[second].time_series)
     # sum up sources (faster)
-    x, y = myvocab[second].sources, myvocab[first].sources
-    myvocab[second].sources = {k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y)}
+    vocab[second].sources = dict_sum(vocab[first].sources, vocab[second].sources)
     # set heading boolean
-    if myvocab[first].headings is True:
-        myvocab[second].headings = True
-    return myvocab
+    if vocab[first].headings is True:
+        vocab[second].headings = True
+    return vocab
 
 
 def dehyphen_vocab(vocab: Dict[str, Entry]) -> Dict[str, Entry]:
@@ -126,13 +125,6 @@ def refine_vocab(myvocab: Dict[str, Entry], lang: Union[str, Tuple[str, ...], No
     # dehyphen
     if dehyphenation is True:
         myvocab = dehyphen_vocab(myvocab)
-    return myvocab
-
-
-def convert_to_numpy(myvocab: Dict[str, Entry]) -> Dict[str, Entry]:
-    "Convert time series to numpy array."
-    for wordform in myvocab:
-        myvocab[wordform].time_series = np.array(myvocab[wordform].time_series, dtype="uint16")
     return myvocab
 
 
@@ -199,7 +191,7 @@ def gen_wordlist(mydir: str, *, langcodes: Union[str, Tuple[str, ...], None]=Non
                         myvocab = putinvocab(myvocab, token, timediff, source=source, inheadings=head)
     # post-processing
     myvocab = refine_vocab(myvocab, lang=langcodes, lemmafilter=lemmafilter)
-    return convert_to_numpy(myvocab)
+    return myvocab
 
 
 def load_wordlist(myfile: str, langcodes: Union[str, Tuple[str, ...], None]=None, maxdiff: int=1000) -> Any:
@@ -228,7 +220,7 @@ def load_wordlist(myfile: str, langcodes: Union[str, Tuple[str, ...], None]=None
             myvocab = putinvocab(myvocab, token, timediff, source=source)
     # post-processing
     myvocab = refine_vocab(myvocab, langcodes)
-    return convert_to_numpy(myvocab)
+    return myvocab
 
 
 def pickle_wordinfo(mydict: Dict[str, Entry], filepath: str) -> None:
@@ -252,14 +244,14 @@ def apply_filters(myvocab: Dict[str, Entry], setting: str='normal') -> None:
         print(wordform)
 
 
-def calculate_bins(myvocab: Dict[str, Entry], interval: int=7, maxdiff: int=1000) -> List[int]:
+def calculate_bins(vocab: Dict[str, Entry], interval: int=7, maxdiff: int=1000) -> List[int]:
     "Calculate time frame bins to fit the data (usually weeks)."
     # init
     oldest, newest = 0, maxdiff
     # iterate over vocabulary to find bounds
-    for word in myvocab:
-        oldest = max(oldest, max(myvocab[word].time_series))
-        newest = min(newest, min(myvocab[word].time_series))
+    for entry in vocab.values():
+        oldest = max(oldest, max(entry.time_series))
+        newest = min(newest, min(entry.time_series))
     # return bins corresponding to boundaries and interval
     return [d for d in range(oldest, newest, -1) if d % interval == 0 and oldest - d >= interval]
 
@@ -269,11 +261,12 @@ def refine_frequencies(vocab: Dict[str, Entry], bins: List[int]) -> Dict[str, En
     deletions = []
     # remove occurrences that are out of bounds: no complete week
     for word in vocab:
-        new_series = [d for d in vocab[word].time_series if bins[-1] <= d < bins[0]]
+        values = flatten(vocab[word].time_series)
+        new_series = [d for d in values if bins[-1] <= d < bins[0]]
         if len(new_series) <= 1:
             deletions.append(word)
         else:
-            vocab[word].time_series = new_series  # array(ARRAY_TYPE, new_series)
+            vocab[word].time_series = Counter(new_series)
     # remove words with too little data
     for word in deletions:
         del vocab[word]
@@ -287,14 +280,15 @@ def compute_frequencies(vocab: Dict[str, Entry], bins: List[int]) -> Tuple[Dict[
     oldestday = max(bins) + 6
     newestday = min(bins) - 6
     # frequency computations
-    freqsum = sum(len(vocab[l].time_series) for l in vocab)
+    freqsum = sum(sum_entry(vocab[l]) for l in vocab)
     for wordform in vocab:
         freqseries = []
         # parts per million
-        vocab[wordform].total = float(f'{((len(vocab[wordform].time_series) / freqsum)*1000000):.3f}')
+        ppm = (sum_entry(vocab[wordform]) / freqsum)*1000000
+        vocab[wordform].total = float(f'{ppm:.3f}')
         ## OLD code
         mysum = 0
-        mydays = Counter(vocab[wordform].time_series)
+        mydays = vocab[wordform].time_series
         for day in range(oldestday, newestday, -1):
             if day in mydays:
                 mysum += mydays[day]
@@ -337,7 +331,7 @@ def combine_frequencies(vocab: Dict[str, Entry], bins: List[int], timeseries: Li
         # todo: skip if series too short
         # delete rare words to prevent unreliable figures
         #if len(series) < len(bins) / 2:
-        if len(bins) >= 3 and len(series) < 3:
+        if len(series) < 3 <= len(bins):
             deletions.append(wordform)
             continue
         vocab[wordform].stddev = float(f'{np.std(series):.3f}')

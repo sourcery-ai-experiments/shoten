@@ -4,9 +4,9 @@
 #from __future__ import annotations
 
 from array import array
-from collections import defaultdict  # Counter
+from collections import defaultdict, Counter
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Iterator, List, Union
 
 # Python 3.7+
 # from numpy.typing import ArrayLike  # type: ignore[import]
@@ -28,9 +28,35 @@ class Entry:
         self.absfreq: int
         self.headings: bool = False
         self.mean: float
-        self.series_abs: Any[int] = array('f')
-        self.series_rel: Any[float] = array('f')
+        self.series_abs: Any = array('f')
+        self.series_rel: Any = array('f')
         self.sources: Dict[str, int] = defaultdict(int)
         self.stddev: float
-        self.time_series: Any[int] = []  # array(ARRAY_TYPE)
+        self.time_series: Dict[int, int] = defaultdict(int)
         self.total: float
+
+
+def dict_sum(one: Dict[Any, int], two: Dict[Any, int]) -> Dict[Any, int]:
+    "Add up two dictionaries, fast."
+    return {k: one.get(k, 0) + two.get(k, 0) for k in set(one) | set(two)}
+
+
+def flatten(mydict: Dict[int, int]) -> Union[Iterator[int], List[int]]:
+    "Flatten a defaultdict(int) to a list."
+    # optimized
+    if len(mydict) < 10:
+        mylist = []
+        _ = [mylist.extend([k]*v) for k, v in mydict.items()]  # type: ignore[func-returns-value]
+        return mylist
+    # stable for larger dicts
+    return Counter(mydict).elements()
+
+
+def sum_entry(entry: Entry) -> int:
+    "Get the total number of occurrences of a word by summing the values in its dict."
+    return sum(entry.time_series.values())
+
+
+def sum_entries(vocab: Dict[str, Entry]) -> List[int]:
+    "Return all frequencies in the vocabulary by word."
+    return [sum_entry(e) for _, e in vocab.items()]
