@@ -204,16 +204,15 @@ def zipf_filter(vocab: Dict[str, Entry], freqperc: float=65, lenperc: float=35, 
 def freshness_filter(vocab: Dict[str, Entry], percentage: float=10) -> Dict[str, Entry]:
     '''Define a freshness threshold to model series of token occurrences in time.'''
     old_len = len(vocab)
-    mysums = np.array(sum_entries(vocab))
-    datethreshold = np.percentile(mysums, percentage)
+    datethreshold = np.percentile(sum_entries(vocab), percentage)
     deletions = []
     for token in vocab:
         # re-order
-        series = -np.sort(flatten(vocab[token].time_series))  # type: ignore
+        series = [-i for i in sorted(flatten(vocab[token].time_series))]
         # thresholds
-        thresh = series.shape[0]*(percentage/100)
-        freshnessindex = np.sum(series[-ceil(thresh):])
-        oldnessindex = np.sum(series[:ceil(thresh)])
+        thresh = len(series)*(percentage/100)
+        freshnessindex = sum(series[-ceil(thresh):])
+        oldnessindex = sum(series[:ceil(thresh)])
         if oldnessindex < datethreshold:
             #if oldnessindex < np.percentile(series, percentage):
             #    continue
