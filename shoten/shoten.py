@@ -363,7 +363,7 @@ def gen_freqlist(mydir: str, *, langcodes: Union[str, Tuple[str, ...], None]=Non
     # sum up frequencies
     myvocab = combine_frequencies(myvocab, bins, timeseries)
 
-    return myvocab
+    return myvocab  # type: ignore[no-any-return]
 
 
 def store_freqlist(freqs: Dict[str, Entry], filename: str, thres_a: float=1, thres_b: float=0.2) -> None:
