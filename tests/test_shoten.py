@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 import pytest
 
-from shoten import apply_filters, calc_timediff, calculate_bins, combine_frequencies, compute_frequencies, dehyphen_vocab, filter_lemmaform, gen_freqlist, gen_wordlist, load_wordlist, pickle_wordinfo, putinvocab, prune_vocab, refine_frequencies, refine_vocab, store_freqlist, unpickle_wordinfo
+from shoten import apply_filters, calc_timediff, calculate_bins, combine_frequencies, compute_frequencies, dehyphen_vocab, filter_lemmaform, find_files, gen_freqlist, gen_wordlist, load_wordlist, pickle_wordinfo, putinvocab, prune_vocab, refine_frequencies, refine_vocab, store_freqlist, unpickle_wordinfo
 from shoten.cli import main, parse_args, process_args
 from shoten.datatypes import Entry
 from shoten.filters import combined_filters, frequency_filter, headings_filter, hyphenated_filter, is_relevant_input, longtermfilter, ngram_filter, oldest_filter, read_freqlist, recognized_by_simplemma, scoring_func, shortness_filter, sources_filter, sources_freqfilter, store_results, wordlist_filter, zipf_filter
@@ -36,6 +36,8 @@ def test_basics():
     assert calc_timediff('2020 A') is None
     assert calc_timediff('2020-01-01') > 1
     assert calc_timediff('2030-01-01') < 1
+    # directories
+    assert list(find_files(str(Path(__file__).parent / 'testdir'), 100000)) != list(find_files(str(Path(__file__).parent / 'testdir'), 100))
     # load words
     myvocab = load_wordlist(str(Path(__file__).parent / 'inputfile.txt'))
     assert len(myvocab) == 3
@@ -69,7 +71,7 @@ def test_basics():
     # test frequency calculations
     assert gen_freqlist(str(Path(__file__).parent / 'testdir' / 'test2')) == {}
     assert gen_freqlist(str(Path(__file__).parent / 'testdir'), langcodes=('en')) == {}
-    result = gen_freqlist(str(Path(__file__).parent / 'testdir'), langcodes=('de', 'en'), maxdiff=10000, mindiff=0, interval=7)
+    result = gen_freqlist(str(Path(__file__).parent / 'testdir'), langcodes=('de', 'en'), maxdiff=3000, mindiff=0, interval=7)
     # bins present but not enough data
     assert result == {}
     # write to temp file

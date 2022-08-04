@@ -5,6 +5,7 @@
 import csv
 import gzip
 import pickle
+import re
 
 from array import array
 from collections import Counter
@@ -29,11 +30,20 @@ from .filters import combined_filters, is_relevant_input, MIN_LENGTH
 LOCK = RLock()
 THREADNUM = min(cpu_count(), 16)  # type: ignore[type-var]
 NSPACE = {"tei": "http://www.tei-c.org/ns/1.0"}
+DATESEARCH = re.compile(r'[0-9]{4}-[0-9]{2}-[0-9]{2}')
 
 
-def find_files(dirname: str) -> Iterator[str]:
+def find_files(dirname: str, maxdiff: int) -> Iterator[str]:
     "Search a directory for files."
     for thepath, _, files in walk(dirname):
+        # check for dates in directory names
+        if '-' in thepath:
+            match = DATESEARCH.search(thepath)
+            if match:
+                thisdiff = calc_timediff(match[0])
+                if thisdiff is not None and thisdiff > maxdiff:
+                    continue
+        # yield files with full path
         yield from (path.join(thepath, fname) for fname in files if Path(fname).suffix == '.xml')
 
 
@@ -178,13 +188,13 @@ def gen_wordlist(mydir: str, *, langcodes: Union[str, Tuple[str, ...], None]=Non
     # read files
     # legacy code
     if threads == 1:
-        for f in find_files(mydir):
+        for f in find_files(mydir, maxdiff):
             for token, timediff, source, head in readfunc(f):
                 myvocab = putinvocab(myvocab, token, timediff, source=source, inheadings=head)
     # multi-threaded code
     else:
         with ThreadPoolExecutor(max_workers=threads) as executor:
-            file_tasks = {executor.submit(readfunc, f): f for f in find_files(mydir)}
+            file_tasks = {executor.submit(readfunc, f): f for f in find_files(mydir, maxdiff)}
             for future in as_completed(file_tasks):
                 for token, timediff, source, head in future.result():
                     with LOCK:
