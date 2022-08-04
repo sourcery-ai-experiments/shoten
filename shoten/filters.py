@@ -17,7 +17,7 @@ from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
 
 from simplemma import is_known, lemmatize  # type: ignore
 
-from .datatypes import flatten, sum_entry, sum_entries, Entry, MAX_NGRAM_VOC, MAX_SERIES_VAL
+from .datatypes import flatten_series, sum_entry, sum_entries, Entry, MAX_NGRAM_VOC, MAX_SERIES_VAL
 
 
 UNSUITABLE_PUNCT = set(string.punctuation) - {'-', '_'}
@@ -49,7 +49,7 @@ def store_results(vocab: Dict[str, Entry], filename: str) -> None:
         tsvwriter.writerow(['word', 'sources', 'time series'])
         # for token in sorted(vocab, key=locale.strxfrm):
         for entry in vocab:
-            tsvwriter.writerow([entry, ','.join(vocab[entry].sources), str(flatten(vocab[entry].time_series))])
+            tsvwriter.writerow([entry, ','.join(vocab[entry].sources), str(sorted(flatten_series(vocab[entry])))])
 
 
 def combined_filters(vocab: Dict[str, Entry], setting: str) -> Dict[str, Entry]:
@@ -169,8 +169,10 @@ def oldest_filter(vocab: Dict[str, Entry], threshold: float=50) -> Dict[str, Ent
     # todo: what about cases like [365, 1, 1, 1] ?
     old_len = len(vocab)
     ratios, values = {}, []
-    for key, value in vocab.items():
-        ratio = sum(flatten(value.time_series))/sum_entry(value)
+    for key, entry in vocab.items():
+        # todo: check these lines
+        # ratio = sum(entry.time_series.keys()) / sum_entry(entry)
+        ratio = sum(flatten_series(entry))/sum_entry(entry)
         ratios[key] = ratio
         values.append(ratio)
     threshold = np.percentile(np.array(values), threshold)
@@ -208,7 +210,7 @@ def freshness_filter(vocab: Dict[str, Entry], percentage: float=10) -> Dict[str,
     deletions = []
     for token in vocab:
         # re-order
-        series = [-i for i in sorted(flatten(vocab[token].time_series))]
+        series = [-i for i in sorted(flatten_series(vocab[token]))]
         # thresholds
         thresh = len(series)*(percentage/100)
         freshnessindex = sum(series[-ceil(thresh):])

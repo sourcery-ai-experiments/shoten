@@ -41,14 +41,15 @@ def dict_sum(one: Dict[Any, int], two: Dict[Any, int]) -> Dict[Any, int]:
     return {k: one.get(k, 0) + two.get(k, 0) for k in set(one) | set(two)}
 
 
-def flatten(mydict: Dict[int, int]) -> Union[Iterator[int], List[int]]:
+def flatten_series(entry: Entry) -> Union[Iterator[int], List[int]]:
     "Flatten a defaultdict(int) to a list."
-    # optimized
-    if len(mydict) < 10:
+    mydict = entry.time_series
+    # optimized, returns list
+    if len(mydict) < 50:
         mylist = []
         _ = [mylist.extend([k]*v) for k, v in mydict.items()]  # type: ignore[func-returns-value]
         return mylist
-    # stable for larger dicts
+    # computationally stable for larger dicts, returns iterator
     return Counter(mydict).elements()
 
 
@@ -59,4 +60,4 @@ def sum_entry(entry: Entry) -> int:
 
 def sum_entries(vocab: Dict[str, Entry]) -> List[int]:
     "Return all frequencies in the vocabulary by word."
-    return [sum_entry(e) for _, e in vocab.items()]
+    return [sum_entry(e) for e in vocab.values()]

@@ -22,7 +22,7 @@ from courlan import extract_domain  # type: ignore
 from lxml.etree import fromstring  # type: ignore[import]
 from simplemma import lemmatize, simple_tokenizer, is_known  # type: ignore
 
-from .datatypes import dict_sum, sum_entry, flatten, ARRAY_TYPE, Entry, MAX_SERIES_VAL, TODAY
+from .datatypes import dict_sum, sum_entry, flatten_series, ARRAY_TYPE, Entry, MAX_SERIES_VAL, TODAY
 from .filters import combined_filters, is_relevant_input, MIN_LENGTH
 
 
@@ -261,8 +261,7 @@ def refine_frequencies(vocab: Dict[str, Entry], bins: List[int]) -> Dict[str, En
     deletions = []
     # remove occurrences that are out of bounds: no complete week
     for word in vocab:
-        values = flatten(vocab[word].time_series)
-        new_series = [d for d in values if bins[-1] <= d < bins[0]]
+        new_series = [d for d in flatten_series(vocab[word]) if bins[-1] <= d < bins[0]]
         if len(new_series) <= 1:
             deletions.append(word)
         else:
