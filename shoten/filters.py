@@ -2,6 +2,7 @@
 
 
 import csv
+import re
 import string
 
 from collections import Counter
@@ -97,6 +98,16 @@ def hapax_filter(vocab: Dict[str, Entry], freqcount: int=2) -> Dict[str, Entry]:
     for token in [t for t in vocab if len(vocab[t].time_series) == 1 and sum_entry(vocab[t]) <= freqcount]:
         del vocab[token]
     print_changes('sameness/hapax', old_len, len(vocab))
+    return vocab
+
+
+def regex_filter(vocab: Dict[str, Entry], regex_str: str) -> Dict[str, Entry]:
+    "Delete words based on a custom regular expression."
+    old_len = len(vocab)
+    regex = re.compile(fr'{regex_str}', re.I)
+    for token in [t for t in vocab if regex.search(t)]:
+        del vocab[token]
+    print_changes('custom regex:', old_len, len(vocab))
     return vocab
 
 

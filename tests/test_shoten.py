@@ -18,7 +18,7 @@ import pytest
 from shoten import apply_filters, calc_timediff, calculate_bins, combine_frequencies, compute_frequencies, dehyphen_vocab, filter_lemmaform, find_files, gen_freqlist, gen_wordlist, load_wordlist, pickle_wordinfo, putinvocab, prune_vocab, refine_frequencies, refine_vocab, store_freqlist, unpickle_wordinfo
 from shoten.cli import main, parse_args, process_args
 from shoten.datatypes import Entry
-from shoten.filters import combined_filters, frequency_filter, headings_filter, hyphenated_filter, is_relevant_input, longtermfilter, ngram_filter, oldest_filter, read_freqlist, recognized_by_simplemma, scoring_func, shortness_filter, sources_filter, sources_freqfilter, store_results, wordlist_filter, zipf_filter
+from shoten.filters import combined_filters, frequency_filter, headings_filter, hyphenated_filter, is_relevant_input, longtermfilter, ngram_filter, oldest_filter, read_freqlist, recognized_by_simplemma, regex_filter, scoring_func, shortness_filter, sources_filter, sources_freqfilter, store_results, wordlist_filter, zipf_filter
 
 
 # Turns a dictionary into a class
@@ -189,6 +189,12 @@ def test_filters():
     assert not is_relevant_input('abcde12345')
     assert not is_relevant_input('ABCDEF')
     assert not is_relevant_input(',,,,,,')
+
+    # regex
+    voc = {'Friedrichstraße': Entry(), 'test': Entry()}
+    assert len(voc) == 2
+    voc = regex_filter(voc, "straße$")
+    assert len(voc) == 1
 
     # lemmata
     newvocab = recognized_by_simplemma(deepcopy(myvocab), lang='de')
