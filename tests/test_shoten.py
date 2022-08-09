@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 import pytest
 
-from shoten import apply_filters, calc_timediff, calculate_bins, combine_frequencies, compute_frequencies, dehyphen_vocab, filter_lemmaform, find_files, gen_freqlist, gen_wordlist, load_wordlist, pickle_wordinfo, putinvocab, prune_vocab, refine_frequencies, refine_vocab, store_freqlist, unpickle_wordinfo
+from shoten import apply_filters, calc_timediff, calculate_bins, combine_frequencies, compute_frequencies, dehyphen_vocab, filter_lemmaform, find_files, gen_freqlist, gen_wordlist, load_wordlist, pickle_wordinfo, putinvocab_single, prune_vocab, refine_frequencies, refine_vocab, store_freqlist, unpickle_wordinfo
 from shoten.cli import main, parse_args, process_args
 from shoten.datatypes import Entry
 from shoten.filters import combined_filters, frequency_filter, headings_filter, hyphenated_filter, is_relevant_input, longtermfilter, ngram_filter, oldest_filter, read_freqlist, recognized_by_simplemma, regex_filter, scoring_func, shortness_filter, sources_filter, sources_freqfilter, store_results, wordlist_filter, zipf_filter
@@ -100,7 +100,7 @@ def test_internals():
 
     # store in vocabulary
     myvocab = {}
-    myvocab = putinvocab(myvocab, 'Bergung', 5, source='Source_0', inheadings=True)
+    myvocab = putinvocab_single(myvocab, 'Bergung', 5, source='Source_0', inheadings=True)
     assert 'Bergung' in myvocab and myvocab['Bergung'].time_series == {5: 1} and myvocab['Bergung'].headings is True
 
     # de-hyphening
