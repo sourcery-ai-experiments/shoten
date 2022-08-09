@@ -70,13 +70,14 @@ def filter_lemmaform(token: str, lang: Union[str, Tuple[str, ...], None]=('de', 
 def putinvocab_single(myvocab: Dict[str, Entry], wordform: str, timediff: int, *, source: Optional[str]=None, inheadings: bool=False) -> Dict[str, Entry]:
     "Store a single word form in the vocabulary or add a new occurrence to it."
     if wordform not in myvocab:
-        myvocab[wordform] = Entry()
+        myvocab[wordform] = Entry(head=inheadings)
+    else:
+        if inheadings is True and myvocab[wordform].headings is False:
+            myvocab[wordform].headings = True
     myvocab[wordform].time_series[timediff] += 1
-    if source is not None and len(source) > 0:
+    if source:
         # slower: myvocab[wordform].sources.update(source)
         myvocab[wordform].sources[source] += 1
-    if inheadings is True:
-        myvocab[wordform].headings = True
     return myvocab
 
 
@@ -87,13 +88,14 @@ def putinvocab_multi(vocab: Dict[str, Entry], result: Optional[Tuple[Dict[str, i
     tokens, timediff, source, headwords = result
     for token in tokens:
         if token not in vocab:
-            vocab[token] = Entry()
+            vocab[token] = Entry(head=token in headwords)
+        else:
+            if token in headwords and vocab[token].headings is False:
+                vocab[token].headings = True
         vocab[token].time_series[timediff] += tokens[token]
         if source:
             # slower: myvocab[wordform].sources.update(source)
-            vocab[token].sources[source] += tokens[token]
-        if token in headwords:
-            vocab[token].headings = True
+            vocab[token].sources[source] += 1
     return vocab
 
 

@@ -24,9 +24,9 @@ MAX_NGRAM_VOC = 15000
 class Entry:
     "Defines a class for dictionaries entries, containing metadata and stats."
     __slots__ = ['absfreq', 'headings', 'mean', 'series_abs', 'series_rel', 'sources', 'stddev', 'time_series', 'total']
-    def __init__(self) -> None:
+    def __init__(self, head: bool=False) -> None:
         self.absfreq: int
-        self.headings: bool = False
+        self.headings = head
         self.mean: float
         self.series_abs: Any = array('f')
         self.series_rel: Any = array('f')
@@ -38,7 +38,12 @@ class Entry:
 
 def dict_sum(one: Dict[Any, int], two: Dict[Any, int]) -> Dict[Any, int]:
     "Add up two dictionaries, fast."
-    return {k: one.get(k, 0) + two.get(k, 0) for k in set(one) | set(two)}
+    for key in two:
+        if key in one:
+            one[key] += two[key]
+        else:
+            one[key] = two[key]
+    return one
 
 
 def flatten_series(entry: Entry) -> Union[Iterator[int], List[int]]:
