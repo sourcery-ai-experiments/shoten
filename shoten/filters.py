@@ -13,10 +13,10 @@ from typing import Any, Dict, List, Set, Tuple, Union
 
 import numpy as np  # type: ignore[import]
 
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer  # type: ignore
-from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer  # type: ignore[import]
+from sklearn.metrics.pairwise import cosine_similarity  # type: ignore[import]
 
-from simplemma import is_known, lemmatize  # type: ignore
+from simplemma import is_known, lemmatize  # type: ignore[attr-defined]
 
 from .datatypes import flatten_series, sum_entry, sum_entries, Entry, MAX_NGRAM_VOC, MAX_SERIES_VAL
 
@@ -111,10 +111,10 @@ def regex_filter(vocab: Dict[str, Entry], regex_str: str) -> Dict[str, Entry]:
     return vocab
 
 
-def recognized_by_simplemma(vocab: Dict[str, Entry], lang: Union[str, Tuple[str, ...], None]=None) -> Dict[str, Entry]:
+def recognized_by_simplemma(vocab: Dict[str, Entry], lang: Union[str, Tuple[str], None]=None) -> Dict[str, Entry]:
     'Run the simplemma lemmatizer to check if input is recognized.'
     old_len = len(vocab)
-    for token in [t for t in vocab if is_known(t, lang=lang)]:  # type: ignore[arg-type]
+    for token in [t for t in vocab if is_known(t, lang=lang)]:
         del vocab[token]
     print_changes('known by simplemma', old_len, len(vocab))
     deletions = []
@@ -126,6 +126,26 @@ def recognized_by_simplemma(vocab: Dict[str, Entry], lang: Union[str, Tuple[str,
     for token in deletions:
         del vocab[token]
     print_changes('reduced by simplemma', old_len, len(vocab))
+    return vocab
+
+
+def compound_filter(vocab: Dict[str, Entry], lang: Union[str, Tuple[str], None]=None, threshold: float=10) -> Dict[str, Entry]:
+    "Split hyphenated compounds and delete already known or too frequent components."
+    old_len = len(vocab)
+    freqs = sum_entries(vocab)
+    threshold = np.percentile(freqs, 10)  # type: ignore[assignment]
+    for token in [t for t in vocab if '-' in t]:
+        mylist = token.split('-')
+        if len(mylist) == 2:
+            first, second = mylist[0], mylist[1]
+            #if firstpart in vocab and sum_entry(vocab[firstpart]) < threshold:
+            if is_known(first, lang=lang) and is_known(second, lang=lang):
+                del vocab[token]
+            elif is_known(first, lang=lang) and second in vocab and sum_entry(vocab[second]) > threshold:
+                del vocab[token]
+            elif is_known(second, lang=lang) and first in vocab and sum_entry(vocab[first]) > threshold:
+                del vocab[token]
+    print_changes('compound filter:', old_len, len(vocab))
     return vocab
 
 

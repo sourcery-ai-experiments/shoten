@@ -18,7 +18,7 @@ import pytest
 from shoten import apply_filters, calc_timediff, calculate_bins, combine_frequencies, compute_frequencies, dehyphen_vocab, filter_lemmaform, find_files, gen_freqlist, gen_wordlist, load_wordlist, pickle_wordinfo, putinvocab_multi, putinvocab_single, prune_vocab, refine_frequencies, refine_vocab, store_freqlist, unpickle_wordinfo
 from shoten.cli import main, parse_args, process_args
 from shoten.datatypes import Entry, flatten_series
-from shoten.filters import combined_filters, frequency_filter, headings_filter, hyphenated_filter, is_relevant_input, longtermfilter, ngram_filter, oldest_filter, read_freqlist, recognized_by_simplemma, regex_filter, scoring_func, shortness_filter, sources_filter, sources_freqfilter, store_results, wordlist_filter, zipf_filter
+from shoten.filters import combined_filters, compound_filter, frequency_filter, headings_filter, hyphenated_filter, is_relevant_input, longtermfilter, ngram_filter, oldest_filter, read_freqlist, recognized_by_simplemma, regex_filter, scoring_func, shortness_filter, sources_filter, sources_freqfilter, store_results, wordlist_filter, zipf_filter
 
 
 # Turns a dictionary into a class
@@ -253,6 +253,17 @@ def test_filters():
     assert scores == {'Others': 2, '2er-Tests': 2}
 
     # hyphens
+    myvocab = {
+        'UBK': ToEntry({'time_series': {3: 3}}),
+        'Test-Funktion': ToEntry({'time_series': Counter([1, 2, 3])}),
+        'Test-Funktion-Wort': ToEntry({'time_series': {3: 2}}),
+        'Testfunktion': ToEntry({'time_series': {3: 3}}),
+        'Test-UBK': ToEntry({'time_series': {3: 1}}),
+        'UBK-Funktion': ToEntry({'time_series': {3: 1}}),
+    }
+    newvocab = compound_filter(myvocab, 'de', 10)
+    assert len(newvocab) == 3
+
     myvocab = {
         'de-hyphening': ToEntry({'time_series': Counter([1, 2, 3])}),
         'hyphens-stuff': ToEntry({'time_series': {3: 2}}),
