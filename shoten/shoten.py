@@ -49,7 +49,7 @@ def find_files(dirname: str, maxdiff: int) -> Iterator[str]:
 def calc_timediff(mydate: str) -> Optional[int]:
     "Compute the difference in days between today and a date in YYYY-MM-DD format."
     try:
-        thisday = datetime(int(mydate[0:4]), int(mydate[5:7]), int(mydate[8:10]))
+        thisday = datetime(int(mydate[:4]), int(mydate[5:7]), int(mydate[8:10]))
     except (TypeError, ValueError):
         return None
     return (TODAY - thisday).days
@@ -58,7 +58,7 @@ def calc_timediff(mydate: str) -> Optional[int]:
 def filter_lemmaform(token: str, lang: Union[str, Tuple[str, ...], None]=('de', 'en'), lemmafilter: bool=True) -> Optional[str]:
     "Determine if the token is to be processed and try to lemmatize it."
     # potential new words only
-    if lemmafilter is True and is_known(token, lang=lang) is True:  # type: ignore[arg-type]
+    if lemmafilter and is_known(token, lang=lang) is True:  # type: ignore[arg-type]
         return None
     # lemmatize
     try:
@@ -71,9 +71,8 @@ def putinvocab_single(myvocab: Dict[str, Entry], wordform: str, timediff: int, *
     "Store a single word form in the vocabulary or add a new occurrence to it."
     if wordform not in myvocab:
         myvocab[wordform] = Entry(head=inheadings)
-    else:
-        if inheadings is True and myvocab[wordform].headings is False:
-            myvocab[wordform].headings = True
+    elif inheadings and myvocab[wordform].headings is False:
+        myvocab[wordform].headings = True
     myvocab[wordform].time_series[timediff] += 1
     if source:
         # slower: myvocab[wordform].sources.update(source)
@@ -89,9 +88,8 @@ def putinvocab_multi(vocab: Dict[str, Entry], result: Optional[Tuple[Dict[str, i
     for token in tokens:
         if token not in vocab:
             vocab[token] = Entry(head=token in headwords)
-        else:
-            if token in headwords and vocab[token].headings is False:
-                vocab[token].headings = True
+        elif token in headwords and vocab[token].headings is False:
+            vocab[token].headings = True
         vocab[token].time_series[timediff] += tokens[token]
         if source:
             # slower: myvocab[wordform].sources.update(source)
@@ -150,7 +148,7 @@ def refine_vocab(myvocab: Dict[str, Entry], lang: Union[str, Tuple[str, ...], No
         for token in deletions:
             del myvocab[token]
     # dehyphen
-    if dehyphenation is True:
+    if dehyphenation:
         myvocab = dehyphen_vocab(myvocab)
     return myvocab
 
@@ -174,7 +172,7 @@ def read_file(filepath: str, *, maxdiff: int=1000, mindiff: int=0, authorregex: 
         # no author string in the document, log?
     # source: extract domain from URL first
     source = None
-    if details is True:
+    if details:
         url_elem = mytree.find('.//tei:ptr[@type="URL"][@target]', namespaces=NSPACE)
         if url_elem is not None:
             source = extract_domain(url_elem.get('target'), fast=True)

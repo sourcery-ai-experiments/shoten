@@ -176,7 +176,7 @@ def frequency_filter(vocab: Dict[str, Entry], max_perc: float=50, min_perc: floa
     return vocab
 
 
-def hyphenated_filter(vocab: Dict[str, Entry], perc: float=50, verbose: bool=False) -> Dict[str, Entry]: # threshold in percent
+def hyphenated_filter(vocab: Dict[str, Entry], perc: float=50, verbose: bool=False) -> Dict[str, Entry]:  # threshold in percent
     '''Reduce dict size by deleting hyphenated tokens when the parts are frequent.'''
     deletions, old_len = [], len(vocab)
     myfreqs = np.array(sum_entries(vocab))
@@ -228,7 +228,7 @@ def zipf_filter(vocab: Dict[str, Entry], freqperc: float=65, lenperc: float=35, 
         # if verbose is True:
             # print(token, len(token), vocab[token].time_series.shape[0])
         del vocab[token]
-    if verbose is True:
+    if verbose:
         print(sorted(deletions))
     print_changes('zipf frequency', old_len, len(vocab))
     return vocab
@@ -262,22 +262,23 @@ def sources_freqfilter(vocab: Dict[str, Entry], threshold: int=2, balanced: bool
     '''Filter words based on source diversity.'''
     deletions = []
     i, j = 0, 0
-    for word in vocab:
-        if len(vocab[word].sources) == 0:
+    for word, entry in vocab.items():
+        sources = entry.sources
+        if len(sources) == 0:
             continue
         # absolute number
-        if len(vocab[word].sources) < threshold:
+        if len(sources) < threshold:
             deletions.append(word)
             i += 1
             continue
         # distribution of sources
-        if balanced is True:
-            values = [t[1] for t in Counter(vocab[word].sources).most_common()]
+        if balanced:
+            values = [t[1] for t in Counter(sources).most_common()]
             # first value too present compared to the rest
-            if values[0] >= 4*values[1]:  # (sum(values)/len(values)):
+            # (sum(values)/len(values))
+            if values[0] >= 4*values[1]:
                 deletions.append(word)
                 j += 1
-                continue
     old_len = len(vocab)
     for item in deletions:
         del vocab[item]
@@ -382,7 +383,7 @@ def longtermfilter(vocab: Dict[str, Entry], filename: str, mustexist: bool=False
         if relfreq < freqlimits[word]:
             #print(word, relfreq, freqlimits[word])
             deletions.append(word)
-    if mustexist is True:
+    if mustexist:
         deletions += [w for w in vocab if w not in freqlimits]
     old_len = len(vocab)
     for item in deletions:
@@ -413,7 +414,7 @@ def ngram_filter(vocab: Dict[str, Entry], threshold: float=90, verbose: bool=Fal
     secondset = set(compute_deletions(mytokens, vectorizer, threshold))
     for token in firstset.intersection(secondset):
         del vocab[token]
-    if verbose is True:
+    if verbose:
         print(sorted(firstset.intersection(secondset)))
     print_changes('ngrams', old_len, len(vocab))
     return vocab
