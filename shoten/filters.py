@@ -101,6 +101,15 @@ def hapax_filter(vocab: Dict[str, Entry], freqcount: int=2) -> Dict[str, Entry]:
     return vocab
 
 
+def different_days_filter(vocab: Dict[str, Entry], threshold: int=2) -> Dict[str, Entry]:
+    '''Delete words which have not been seen on at least n days.'''
+    old_len = len(vocab)
+    for token in [t for t in vocab if len(set(vocab[t].time_series)) < threshold]:
+        del vocab[token]
+    print_changes('different days', old_len, len(vocab))
+    return vocab
+
+
 def regex_filter(vocab: Dict[str, Entry], regex_str: str) -> Dict[str, Entry]:
     "Delete words based on a custom regular expression."
     old_len = len(vocab)
