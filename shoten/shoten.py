@@ -181,7 +181,7 @@ def read_file(filepath: str, *, maxdiff: int=1000, mindiff: int=0, authorregex: 
             source = mytree.findtext('.//tei:publisher', namespaces=NSPACE)
     # headings
     headwords = set()
-    if details is True:
+    if details:
         bow = [' '.join(h.itertext()) for h in mytree.xpath('.//tei:fw|.//tei:head', namespaces=NSPACE)]
         headwords = {t for t in simple_tokenizer(' '.join(bow)) if is_relevant_input(t)}
     # process

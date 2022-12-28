@@ -196,7 +196,7 @@ def hyphenated_filter(vocab: Dict[str, Entry], perc: float=50, verbose: bool=Fal
         if firstpart in vocab and sum_entry(vocab[firstpart]) > threshold or \
            secondpart in vocab and sum_entry(vocab[secondpart]) > threshold:
             deletions.append(word)
-    if verbose is True:
+    if verbose:
         print(sorted(deletions))
     for item in deletions:
         del vocab[item]
@@ -255,12 +255,13 @@ def freshness_filter(vocab: Dict[str, Entry], percentage: float=10) -> Dict[str,
         thresh = len(series)*(percentage/100)
         freshnessindex = sum(series[-ceil(thresh):])
         oldnessindex = sum(series[:ceil(thresh)])
-        if oldnessindex < datethreshold:
+        if oldnessindex < datethreshold and freshnessindex < np.percentile(
+            series, percentage
+        ):
+            deletions.append(token)
+            # print(vocab[token], freshnessindex, oldnessindex, token)
             #if oldnessindex < np.percentile(series, percentage):
             #    continue
-            if freshnessindex < np.percentile(series, percentage):
-                deletions.append(token)
-            # print(vocab[token], freshnessindex, oldnessindex, token)
     for item in deletions:
         del vocab[item]
     print_changes('freshness', old_len, len(vocab))
