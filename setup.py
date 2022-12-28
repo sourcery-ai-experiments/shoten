@@ -23,10 +23,10 @@ readme = Path('README.rst').read_text()
 
 requirements = [
                    'courlan >= 0.8.3',
-                   'lxml >= 4.6.4',
+                   'lxml >= 4.9.2',
                    'numpy',
                    'scikit-learn >= 0.24.2',
-                   'simplemma >= 0.8.0',
+                   'simplemma >= 0.9.0',
                ]
 
 setup_requirements = []
@@ -51,6 +51,7 @@ setup(
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
         'Topic :: Scientific/Engineering :: Information Analysis',
         'Topic :: Text Processing :: Linguistic',
     ],
