@@ -48,25 +48,25 @@ def test_basics():
     myvocab2 = unpickle_wordinfo(filepath)
     assert len(myvocab2) == len(myvocab) and myvocab2['2er-Tests'].time_series == myvocab['2er-Tests'].time_series
     # generate from XML file
-    myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir' / 'test2'), langcodes=('de'))
+    myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir' / 'test2'), langcodes=('de'), maxdiff=10000)
     assert len(myvocab) == 1 and 'Telegram' in myvocab and myvocab['Telegram'].sources['horizont.at'] == 1
     # write to file
     _, temp_outputfile = tempfile.mkstemp(suffix='.tsv', text=True)
     store_results(myvocab, temp_outputfile)
     # single- vs. multi-threaded
-    assert gen_wordlist(str(Path(__file__).parent / 'testdir'), langcodes=('de'), threads=1).keys() == gen_wordlist(str(Path(__file__).parent / 'testdir'), langcodes=('de'), threads=3).keys()
+    assert gen_wordlist(str(Path(__file__).parent / 'testdir'), langcodes=('de'), threads=1, maxdiff=10000).keys() == gen_wordlist(str(Path(__file__).parent / 'testdir'), langcodes=('de'), threads=3, maxdiff=10000).keys()
     # generate list
-    myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir' / ''), langcodes=('de', 'en'))
+    myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir' / ''), langcodes=('de', 'en'), maxdiff=10000)
     assert 'Messengerdienst' in myvocab
     # without language codes and with short time frame
-    myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), langcodes=())
+    myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), langcodes=(), maxdiff=10000)
     assert 'Messengerdienst' in myvocab
     # without language codes and with short time frame
     myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), maxdiff=1)
     assert 'Messengerdienst' not in myvocab
     # with author filter
     myregex = re.compile(r'\b(|afp|apa|dpa)\b', re.I)
-    myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), authorregex=myregex)
+    myvocab = gen_wordlist(str(Path(__file__).parent / 'testdir'), authorregex=myregex, maxdiff=10000)
     assert 'Messengerdienst' not in myvocab
     # test frequency calculations
     assert gen_freqlist(str(Path(__file__).parent / 'testdir' / 'test2')) == {}

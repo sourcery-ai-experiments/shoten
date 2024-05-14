@@ -37,9 +37,9 @@ def parse_args(args: Any) -> Any:
 def process_args(args: Any) -> None:
     'Process input according to CLI arguments.'
     if args.read_file:
-        myvocab = load_wordlist(args.read_file, langcodes=tuple(args.language))
+        myvocab = load_wordlist(args.read_file, langcodes=tuple(args.language), maxdiff=10000)
     elif args.read_dir:
-        myvocab = gen_wordlist(args.read_dir, langcodes=tuple(args.language))
+        myvocab = gen_wordlist(args.read_dir, langcodes=tuple(args.language), maxdiff=10000)
     try:
         myvocab = combined_filters(myvocab, args.filter_level)
     except IndexError:
