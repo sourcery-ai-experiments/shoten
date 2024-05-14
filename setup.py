@@ -16,7 +16,12 @@ def get_version(package):
     return re.search('__version__ = [\'"]([^\'"]+)[\'"]', package_metadata)[1]
 
 
-readme = Path('README.rst').read_text()
+def get_long_description():
+    "Return the README"
+    with open("README.md", "r", encoding="utf-8") as filehandle:
+        long_description = filehandle.read()
+    return long_description
+
 
 #with open('HISTORY.rst') as history_file:
 #    history = history_file.read()
@@ -62,7 +67,8 @@ setup(
     },
     install_requires=requirements,
     license="GPLv3+",
-    long_description=readme, # + '\n\n' + history,
+    long_description= get_long_description(),
+    long_description_content_type="text/markdown",
     include_package_data=True,
     keywords=['nlp'],
     name='shoten',
