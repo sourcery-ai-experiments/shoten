@@ -16,17 +16,22 @@ def get_version(package):
     return re.search('__version__ = [\'"]([^\'"]+)[\'"]', package_metadata)[1]
 
 
-readme = Path('README.rst').read_text()
+def get_long_description():
+    "Return the README"
+    with open("README.md", "r", encoding="utf-8") as filehandle:
+        long_description = filehandle.read()
+    return long_description
+
 
 #with open('HISTORY.rst') as history_file:
 #    history = history_file.read()
 
 requirements = [
-                   'courlan >= 0.8.3',
-                   'lxml >= 4.9.2',
+                   'courlan >= 1.1.0',
+                   'lxml >= 5.2.2',
                    'numpy',
                    'scikit-learn >= 0.24.2',
-                   'simplemma >= 0.9.0',
+                   'simplemma == 0.9.0',
                ]
 
 setup_requirements = []
@@ -52,6 +57,7 @@ setup(
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
         'Topic :: Scientific/Engineering :: Information Analysis',
         'Topic :: Text Processing :: Linguistic',
     ],
@@ -61,7 +67,8 @@ setup(
     },
     install_requires=requirements,
     license="GPLv3+",
-    long_description=readme, # + '\n\n' + history,
+    long_description= get_long_description(),
+    long_description_content_type="text/markdown",
     include_package_data=True,
     keywords=['nlp'],
     name='shoten',
